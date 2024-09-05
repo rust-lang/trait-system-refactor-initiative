@@ -212,4 +212,7 @@ fn main() {
         - `u32: A` inductive cycle
         - final result ambig, no fixpoint -> bail
   - impl2
-    - `u32: C` doesn't depend on B, should ideally be ok :skull: 
+    - `u32: C` the result doesn't depend on B, should ideally be ok :skull: 
+        - impl1
+            - `u32: B` coinductive cycle
+        - impl2 -> trivially ok
