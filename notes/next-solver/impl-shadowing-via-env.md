@@ -1,6 +1,6 @@
 # discard impls via env
 
-If there is a `T: Trait` where-bound, then `<T as Trait>::Assoc` is well-formed but cannot be normalized. We say it is a *rigid* alias.
+If there is a `T: Trait` where-bound or alias-bound, then `<T as Trait>::Assoc` is well-formed but cannot be normalized. We say it is a *rigid* alias.
 
 However, even if there is a where-bound, we may still be able to normalize the associated type using an impl.
 ```rust
