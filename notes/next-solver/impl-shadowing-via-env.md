@@ -131,3 +131,24 @@ The check whether we can use impls to normalize `<T as Trait>::Assoc` is cyclic:
 
 If the cycle is non-productive, we use `NoSolution` as the initial
 result and rerun after successfully normalizing to `T`. The next iteration then uses this provisional result and succeeds, shadowing the impl. This causes `<T as Trait>::Assoc` to be a rigid alias. Rerunning the cycle yet again now fails to equate `T` with the alias.
+
+#### Always treating cycles during the shadowing check as non-productive
+
+This would cause the above example compile and would avoid this breakage. However, it causes eager `ParamEnv` normalization to impact behavior. If the cyclic reasoning is non-productive during eager normalization, we'd normalize the where-bound to `T: Trait`. At this point, it would shadow any future normalizations of `<T as Trait>::Assoc`. It would also cause us to no longer shadow normalization of `<T::Assoc as Trait>::Assoc` as `<T as Trait>::Assoc` is no longer rigid.
+
+```rust
+trait Trait {
+    type Assoc;
+}
+impl<T> Trait for T {
+    type Assoc = T;
+}
+
+fn impls_trait<T: Trait<Assoc = T>>() {}
+fn foo<T>() 
+where
+    <T as Trait>::Assoc: Trait,
+{
+    impls_trait::<T>(); // error in normalized env, ok outside :<
+}
+```
