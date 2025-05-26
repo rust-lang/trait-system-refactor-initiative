@@ -21,9 +21,7 @@ fn shadowed_by_env<T: Trait>(x: <T as Trait>::Assoc) -> u32 {
 }
 ```
 
-Without any explicit modifications, `NormalizesTo(<T as Trait>::Assoc)` will only see a single `Impl` candidate and no `ParamEnv` candidates, causing it to succeed. This results in multiple issues.
-
-The underlying reasoning here is that where-bounds should cover impls and alias-bounds if the where-bound is more general. Using the covered candidate may add undesirable constraints.
+Without any explicit modifications, `NormalizesTo(<T as Trait>::Assoc)` will only see a single `Impl` candidate and no `ParamEnv` candidates, causing it to succeed. This results in multiple issues as we will explore below.
 
 ## Why shadowing
 
@@ -98,6 +96,10 @@ We should generally prefer explicit where-bounds over impls as that's what the u
 
 I feel like ideally we check whether the region constraints differ between the where-bound and the lower-priority candidate and apply the alias-bound/impl only if doing so adds no new constraints.
 
+### Summary
+
+Where-bounds and alias-bounds should cover impls and if they differ from the impl or are more general. Using the covered candidate may add undesirable constraints.
+
 ## Why shadowing sucks
 
 ### Adding bounds to the env breaks code
@@ -132,7 +134,9 @@ The check whether we can use impls to normalize `<T as Trait>::Assoc` is cyclic:
 If the cycle is non-productive, we use `NoSolution` as the initial
 result and rerun after successfully normalizing to `T`. The next iteration then uses this provisional result and succeeds, shadowing the impl. This causes `<T as Trait>::Assoc` to be a rigid alias. Rerunning the cycle yet again now fails to equate `T` with the alias.
 
-#### Always treating cycles during the shadowing check as non-productive
+## Could we fix it?
+
+### Always treating cycles during the shadowing check as non-productive
 
 This would cause the above example compile and would avoid this breakage. However, it causes eager `ParamEnv` normalization to impact behavior. If the cyclic reasoning is non-productive during eager normalization, we'd normalize the where-bound to `T: Trait`. At this point, it would shadow any future normalizations of `<T as Trait>::Assoc`. It would also cause us to no longer shadow normalization of `<T::Assoc as Trait>::Assoc` as `<T as Trait>::Assoc` is no longer rigid.
 
@@ -152,3 +156,14 @@ where
     impls_trait::<T>(); // error in normalized env, ok outside :<
 }
 ```
+
+### Implement generalized "is_global" approach
+
+As stated above, we only need shadowing in cases where the where-bound results in fewer constraints than using the impl or if `Projection` where-bounds differ from the impl.
+
+We could try to treat more where-bounds as *global* to stop them from shadowing impls. This could be done via proving the where-bound via only impl-candidates succeeds when considering the resulting region constraints.
+
+While this may work and seems like a desirable change long-term, it is a major change in itself:
+- it allows a significant amount of new code to compile
+- it may have a significant performance impact and could result in hangs
+- its interaction with cycle handling is non-trivial
