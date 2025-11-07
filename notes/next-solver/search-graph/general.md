@@ -216,3 +216,22 @@ fn main() {
         - impl1
             - `u32: B` coinductive cycle
         - impl2 -> trivially ok
+
+## keeping provisional cache entries on rerun
+
+Due to the provisional cache impacting behavior, goals may not ever depend on themselves on rerun.
+
+- A
+  - B
+    - C (depends on B and gets dropped when rerunning)
+      - D (does not depend on B so we keep it around when rerunning)
+        - C (irrevant candidate)
+        - A
+      - B
+    - D
+      - C (irrevant candidate)
+        - D
+      - A
+    - rerun
+    - C (use cache entry which doesn't depend on B)
+    - D (use cache entry which doesn't depend on B)
