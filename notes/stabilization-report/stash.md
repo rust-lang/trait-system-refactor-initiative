@@ -1,0 +1,39 @@
+# Stash
+
+A temporary stash of things worthy of documentation found while working towards the stabilization.
+
+## `if cx.next_trait_solver()` triage
+
+closure signature infer https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/closure.rs#L390
+
+`coerce_unsized` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/coercion.rs#L687-L700
+
+obligations_for_self_ty https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L41 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L152
+
+region dependent goals etc https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/check/check.rs#L2321
+
+add_item_bounds_for_hidden_type https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L297 is weird, what's going on there
+
+STOPPED at `reveal_opaque_types_in_bounds`.
+
+## `FIXME(-Znext-solver)` triage
+
+## Proof tree visitors and jank
+
+
+## Non-fatal overflow
+
+Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147). It also causes a bunch of problems.
+
+## Entirely different type relations
+
+`NextSolverRelate` vs `TypeRelating` :thinking: https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165
+
+what exactly are the differences here?
+
+
+`generalize` never tries to generalize non-rigid aliases https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L163-L166
+
+non-rigid aliases can always be generalized to an infer var, so we always do so. Old solver does not know whether aliases are rigid, so it only does so when encountering an occurs check failure https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L409
+
+handling of aliases with escaping bound vars is still scuffed https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L554
