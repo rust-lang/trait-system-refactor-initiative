@@ -1,8 +1,6 @@
 # Next-generation trait solver alias types handling
 
-
-
-## Rigid alias marker`
+## Rigid alias marker
 
 The next-generation trait solver explicitly encodes the concept of whether an alias is rigid in the representation of types. See https://github.com/rust-lang/rust/pull/156742. This differs from the old trait solver.
 
@@ -21,6 +19,9 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 ## On-demand normalization
 
 We also add support for on-demand normalization of aliases during type relations and in the trait solver itself. When encountering an alias not marked as rigid in type relations, we emit a `Projection` goal to normalize it at this point. This causes type relations to now emit nested `Projection` obligations. When doing a probe, we generally want to eagerly try to prove these and we change some places in the compiler to do so, e.g. [`Coerce::unify_raw`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/coercion.rs#L181-L192) and [`FnCtxt::try_find_coercion_lub`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/coercion.rs#L1355-L1363).
+
+By doing so, we're fixing most of the issues when relating higher-ranked aliases:
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/9
 
 ## Renormalize during writeback
 

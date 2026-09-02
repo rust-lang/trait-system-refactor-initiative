@@ -18,6 +18,8 @@ evaluate not erroring for all goals which are known to error https://github.com/
 
 ## `FIXME(-Znext-solver)` triage
 
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/region_infer/opaque_types/mod.rs#L384 we should yeet this as part of the opaque types FCP
+
 ## Non-fatal overflow
 
 Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
@@ -29,6 +31,8 @@ Encountering the recursion-limit is no longer fatal with the new trait solver. T
 what exactly are the differences here?
 
 `generalize` never tries to generalize non-rigid aliases https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L163-L166
+
+impact on https://github.com/rust-lang/trait-system-refactor-initiative/issues/8
 
 non-rigid aliases can always be generalized to an infer var, so we always do so. Old solver does not know whether aliases are rigid, so it only does so when encountering an occurs check failure https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L409
 
@@ -52,6 +56,9 @@ uwu https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/evaluate_obligation.rs#L86
 
+## Candidate preference
+
+We now merge where-clauses by checking the constraits in their query response instead of a syntactic check.
 
 ## Query normalize is gone, is that useful?
 
