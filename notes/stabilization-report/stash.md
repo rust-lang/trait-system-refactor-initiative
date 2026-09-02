@@ -14,16 +14,13 @@ region dependent goals etc https://github.com/rust-lang/rust/blob/70222712809cd5
 
 add_item_bounds_for_hidden_type https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L297 is weird, what's going on there
 
-STOPPED at `reveal_opaque_types_in_bounds`.
+evaluate not erroring for all goals which are known to error https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/mod.rs#L230
 
 ## `FIXME(-Znext-solver)` triage
 
-## Proof tree visitors and jank
-
-
 ## Non-fatal overflow
 
-Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147). It also causes a bunch of problems.
+Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
 
 ## Entirely different type relations
 
@@ -31,9 +28,31 @@ Encountering the recursion-limit is no longer fatal with the new trait solver. T
 
 what exactly are the differences here?
 
-
 `generalize` never tries to generalize non-rigid aliases https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L163-L166
 
 non-rigid aliases can always be generalized to an infer var, so we always do so. Old solver does not know whether aliases are rigid, so it only does so when encountering an occurs check failure https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L409
 
 handling of aliases with escaping bound vars is still scuffed https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L554
+
+## New `FulfillmentContext`
+
+## Reimplementing `select`
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/solve/select.rs#L20
+
+## Reimplementing rustdoc auto-trait impl generation
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L84-L91
+
+## Const generics
+
+uwu https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/mod.rs#L460
+
+## When do we use `evaluate_obligation`
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/evaluate_obligation.rs#L86
+
+
+## Query normalize is gone, is that useful?
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/normalize.rs#L79

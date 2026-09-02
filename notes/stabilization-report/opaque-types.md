@@ -35,7 +35,7 @@ With the old solver we eagerly replaced opaque types in the return type with an 
 
 
 
-### Method calls on not-yet defined opaque types
+### Treating not-yet-inferred opaque types as rigid-ish
 
 We want to treat opaque types as rigid when calling methods on them in their own defining scope:
 ```rust
@@ -51,6 +51,8 @@ fn foo(b: bool) -> impl IntoIterator<Item = u32> {
 We reject candidates which would constrain an opaque or which would not hold if the opaque type were rigid, see [`ProbeContext::should_reject_candidate_due_to_opaque_treated_as_rigid`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2259-L2331).
 
 To handle opaque types correctly when computing the `fn method_autoderef_steps` we also track the currently defined opaque types in the canonical input and [response](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/canonical/query_response.rs#L92-L108).
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/evaluate_obligation.rs#L23
 
 ### Other places where opaque types are partially treated as rigid
 
