@@ -29,7 +29,8 @@ At the end of HIR typeck, writeback now explicitly normalizes all non-rigid alia
 
 ## `ParamEnv` normalization jank
 
-The old trait solver does not support on-demand normalization and instead normalizes the `ParamEnv` in an unnormalized `ParamEnv`, incorrectly treating that one as if it were normalized. We originally tried to fix this issue with the new trait solver, but did not do so as it results in performance issues and interesting design questions, see [this zulip thread](https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/goodbye.20proper.20param_env.20normalization/with/594260464).
+The old trait solver does not support on-demand normalization and instead normalizes the `ParamEnv` in an unnormalized `ParamEnv`, incorrectly treating that one as if it were normalized. We originally tried to fix this issue with the new trait solver, but did not do so as it results in performance issues and interesting design questions, see [this zulip thread](https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/goodbye.20proper.20param_env.20normalization/with/594260464). Properly handling aliases during `ParamEnv` normalization resulted in the following issues:
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/89
 
 We keep the behavior of the old solver but implement it differently. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle, but its behavior should effectively match the old trait solver. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
 

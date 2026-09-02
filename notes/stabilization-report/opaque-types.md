@@ -15,7 +15,14 @@ Whenever we encounter an opaque type in its defining scope we normalize it via a
 
 Looking up an opaque type in the `opaque_type_storage` is currently a structural lookup. The current state is an intermediate step towards effectively using higher-kinded inference variables to infer the hidden types of opaque types. See https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/584631784 
 
-## `TypingMode` and using the already inferred hidden type after HIR typeck
+## `TypingMode`
+
+We introduce the concept of a type `TypingMode` for the next-generation trait solver. This very explicitly represents the different stages during compilation. By far there biggest impact is on the way we handle opaque types:
+- during `TypingMode::Coherence` normalizing opaque types is always ambiguous [source](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L28-L42)
+- we only use `TypingMode::Typeck` only during HIR typeck. This is used to infer the hidden type of the opaque modulo regions.
+- anything after that uses `TypingMode::PostTypeckUntilBorrowck`. Here we already know the hidden type modulo regions and either ignore regions or infer them during borrowck
+- user-facing analysis after borrowck uses `TypingMode::PostBorrowck`. We now fully know the hidden type of opaques in the defining scope
+- after analysis we normalize all opaque types by simply using `type_of` to get their underlying type
 
 This allows us to remove a bunch of hacky handling in functions which are conceptually in the defining scope and which happen after HIR typeck, e.g. [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/check/check.rs#L415-L416). and [`fn check_coroutine_obligations`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165).
 
