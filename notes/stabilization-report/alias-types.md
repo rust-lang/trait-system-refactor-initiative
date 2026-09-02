@@ -33,7 +33,12 @@ The old trait solver does not support on-demand normalization and instead normal
 
 We keep the behavior of the old solver but implement it differently. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle, but its behavior should effectively match the old trait solver. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
 
-still do it, rigid alias handling sus
+Interesting:
+- we do not mark constants as rigid, only types. This ends up matching the existing stable behavior, it matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
+
+## TODO
+
+normalization dev-guide chapter
 
 `reveal_opaque_types_in_bounds` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_middle/src/ty/mod.rs#L1215 TODO
 

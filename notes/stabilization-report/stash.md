@@ -24,6 +24,8 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 
 Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
 
+As crates can successfully compile even if they hit the recursion limit, increasing the limit can worsen their compile-time performance. This affects `typenum` whose performance gets 2x worse when doubling the recursion depth.
+
 ## Entirely different type relations
 
 `NextSolverRelate` vs `TypeRelating` :thinking: https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165
@@ -41,6 +43,14 @@ handling of aliases with escaping bound vars is still scuffed https://github.com
 ## New `FulfillmentContext`
 
 ## Reimplementing `select`
+
+Selection is implemented separately from trait solving in the new solver. TODO WHY?
+
+This means trait solving and selection can differ in the way they handle candidate preference. Trait solving only merges user-written impl and the builtin trait object impl candidates if they have the same constraints, while selection needs to always prefer the builtin trait object impl.
+
+THis feels outdated, do looky look :>
+
+
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/solve/select.rs#L20
 
@@ -60,6 +70,31 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 
 We now merge where-clauses by checking the constraits in their query response instead of a syntactic check.
 
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/27
+
 ## Query normalize is gone, is that useful?
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/normalize.rs#L79
+
+## significnat changes
+
+https://rustc-dev-guide.rust-lang.org/solve/significant-changes.html
+
+## leak check?
+
+make sure https://github.com/rust-lang/rust/pull/119820 is in the dev-guide :thinking:
+
+## Region uniquification
+
+damn, wtf is that shit
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/30
+
+## Overlapping impl candidates are blocking :>
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/35
+
+## GAT where-bounds vs old solver?
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/44
+
+continue https://github.com/rust-lang/trait-system-refactor-initiative/issues?q=is%3Aissue%20sort%3Acreated-desc&page=10

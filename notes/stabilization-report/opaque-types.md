@@ -65,3 +65,8 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 ## Miscellaneous changes and open issues
 
 We now always require defining scopes to actually provide a value for the hidden type of an opaque type and not doing so now eagerly results in a hard error. This means we no longer have to provide a default value in [`fn type_of` for RPITs](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/collect/type_of/opaque.rs#L260-L269).
+
+We allow equating two opaques which are both in their defining scope as we just unify their hidden types. The old solver explicitly errored here https://github.com/rust-lang/trait-system-refactor-initiative/issues/29.
+
+The fact that we can always normalize opaque types in their defining scope means that proving auto-trait bounds for opaque types in their defining scope no longer fails with ambiguity https://github.com/rust-lang/trait-system-refactor-initiative/issues/32
+
