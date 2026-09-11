@@ -31,11 +31,20 @@ At the end of HIR typeck, writeback now explicitly normalizes all non-rigid alia
 
 The old trait solver does not support on-demand normalization and instead normalizes the `ParamEnv` in an unnormalized `ParamEnv`, incorrectly treating that one as if it were normalized. We originally tried to fix this issue with the new trait solver, but did not do so as it results in performance issues and interesting design questions, see [this zulip thread](https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/goodbye.20proper.20param_env.20normalization/with/594260464). Properly handling aliases during `ParamEnv` normalization resulted in the following issues:
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/89
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/176
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/216
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/219
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/246
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/265
 
 We keep the behavior of the old solver but implement it differently. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle, but its behavior should effectively match the old trait solver. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
 
 Interesting:
 - we do not mark constants as rigid, only types. This ends up matching the existing stable behavior, it matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
+
+## Relating higher-ranked aliases is no longer incomplete
+
+This causes a lot of inference breakage, cc https://github.com/rust-lang/trait-system-refactor-initiative/issues/168
 
 ## TODO
 
@@ -44,3 +53,5 @@ normalization dev-guide chapter
 `reveal_opaque_types_in_bounds` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_middle/src/ty/mod.rs#L1215 TODO
 
 what is `with_normalized` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_middle/src/ty/mod.rs#L1209
+
+fun fact: can't actually require `T: Trait` to hold for rigid `<T as Trait>::Assoc` alias due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177

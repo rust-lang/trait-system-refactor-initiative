@@ -4,6 +4,7 @@
 
 This causes some minor breakage
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/209
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/118
 
 ## Old-style canonicalization
 

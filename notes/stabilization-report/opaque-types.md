@@ -13,7 +13,7 @@ Whenever we encounter an opaque type in its defining scope we normalize it via a
 - [`NllTypeRelating::relate_opaques`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/relate_tys.rs#L116)
 - [`NllTypeRelating::tys`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/relate_tys.rs#L428-L436) the call to `super_combine_tys` is fallible
 
-Looking up an opaque type in the `opaque_type_storage` is currently a structural lookup. The current state is an intermediate step towards effectively using higher-kinded inference variables to infer the hidden types of opaque types. See https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/584631784 
+Looking up an opaque type in the `opaque_type_storage` is currently a structural lookup. The current state is an intermediate step towards effectively using higher-kinded inference variables to infer the hidden types of opaque types. See https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/584631784
 
 ## `TypingMode`
 
@@ -26,6 +26,10 @@ We introduce the concept of a type `TypingMode` for the next-generation trait so
 
 This allows us to remove a bunch of hacky handling in functions which are conceptually in the defining scope and which happen after HIR typeck, e.g. [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/check/check.rs#L415-L416). and [`fn check_coroutine_obligations`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165).
 
+## Non-defining uses in the defining scope
+
+We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though. TODO https://github.com/rust-lang/trait-system-refactor-initiative/issues/135
+
 ## HIR typeck
 
 `try_handle_opaque_type_uses_next` and `handle_opaque_type_uses_next`
@@ -34,17 +38,23 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L259
 
-defining uses pre fallback and after fallback right before writeback
+defining uses pre fallback and after fallback right before writeback: necessary for https://github.com/rust-lang/trait-system-refactor-initiative/issues/207
 
 `has_opaques_with_sub_unified_hidden_type` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/mod.rs#L1132 and opaques_with_sub_unified_hidden_type
 
 With the old solver we eagerly replaced opaque types in the return type with an inference variable via [`InferCtxt::replace_opaque_types_with_inference_vars`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L26). We no longer do so with the new solver. This was necessary as the old solver sometimes incorrectly treated opaque types as rigid in their defining scope.
 
+All of the inference guidance for not-yet defined opaque types checks whether an inference variable is sub-unified with the hidden type of an opaque, not the hidden type of an opaque type itself.
+
 ### Inference guidance for obligations involving not-yet defined opaque types
 
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/182
 
+TODO: https://github.com/rust-lang/rust/pull/161414
 
-### Treating not-yet-inferred opaque types as rigid-ish
+Need to also go through blanket impls if the self-type is a not-yet inferred opaque type https://github.com/rust-lang/trait-system-refactor-initiative/issues/196. The blanket impl handling here is kinda scuffed, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/205 / https://github.com/rust-lang/trait-system-refactor-initiative/issues/229
+
+### Method calls on non-yet defined opaque types
 
 We want to treat opaque types as rigid when calling methods on them in their own defining scope:
 ```rust
@@ -57,23 +67,49 @@ fn foo(b: bool) -> impl IntoIterator<Item = u32> {
 }
 ```
 
-We reject candidates which would constrain an opaque or which would not hold if the opaque type were rigid, see [`ProbeContext::should_reject_candidate_due_to_opaque_treated_as_rigid`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2259-L2331).
+We reject candidates which would constrain an opaque or which would not hold if the opaque type were rigid, see [`ProbeContext::should_reject_candidate_due_to_opaque_treated_as_rigid`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2259-L2331). Some subtleties, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/285
 
 To handle opaque types correctly when computing the `fn method_autoderef_steps` we also track the currently defined opaque types in the canonical input and [response](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/canonical/query_response.rs#L92-L108).
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/evaluate_obligation.rs#L23
 
-### Other places where opaque types are partially treated as rigid
+### Function calls on not-yet defined opaque types
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/181
+
+### Other places treating opaque types as rigid
 
 ## MIR borrowck
+
+Fun stuff, TODO link to PR and a bit of explanation
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
 
 ## Lints and MIR building
 
 ## Miscellaneous changes and open issues
 
-We now always require defining scopes to actually provide a value for the hidden type of an opaque type and not doing so now eagerly results in a hard error. This means we no longer have to provide a default value in [`fn type_of` for RPITs](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/collect/type_of/opaque.rs#L260-L269).
+We now always require defining scopes to actually provide a value for the hidden type of an opaque type and not doing so now eagerly results in a hard error. This means we no longer have to provide a default value in [`fn type_of` for RPITs](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/collect/type_of/opaque.rs#L260-L269). This is a minor breakage as it causes the following to now error:
+```rust
+fn test() -> impl Sized {
+    test()
+}
+```
 
 We allow equating two opaques which are both in their defining scope as we just unify their hidden types. The old solver explicitly errored here https://github.com/rust-lang/trait-system-refactor-initiative/issues/29.
 
 The fact that we can always normalize opaque types in their defining scope means that proving auto-trait bounds for opaque types in their defining scope no longer fails with ambiguity https://github.com/rust-lang/trait-system-refactor-initiative/issues/32
 
+We previously didn't normalize opaque types when checking region constraints. Doing so allows more code to compile: https://github.com/rust-lang/trait-system-refactor-initiative/issues/112
+
+Opaque types in dead code still getting defined in MIR borrowck, constraining regions via member constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/170
+
+Applying member constraints can be incomplete. This means new non-defining uses can theoretically result in unnecessary region constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/227
+
+There's one weird footgun for `Copy` and `FnMut` closures. We should lint there or sth https://github.com/rust-lang/trait-system-refactor-initiative/issues/230 
+
+There are places which currently use `structurally_resolve_type` which break with the new solver and opaque types https://github.com/rust-lang/trait-system-refactor-initiative/issues/231
+
+## The shiny future
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/271 / https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/619467087

@@ -20,14 +20,6 @@ evaluate not erroring for all goals which are known to error https://github.com/
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/region_infer/opaque_types/mod.rs#L384 we should yeet this as part of the opaque types FCP
 
-## Non-fatal overflow
-
-Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
-
-As crates can successfully compile even if they hit the recursion limit, increasing the limit can worsen their compile-time performance. This affects `typenum` whose performance gets 2x worse when doubling the recursion depth.
-
-This is partialy necessary due to the removal of [`fn match_fresh_trait_preds`](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1213-L1226) https://github.com/rust-lang/trait-system-refactor-initiative/issues/56. We've removed this as it made the global cache observable, which is incorrect wrt incremental compilation.
-
 ## Entirely different type relations
 
 `NextSolverRelate` vs `TypeRelating` :thinking: https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165
@@ -40,6 +32,8 @@ impact on https://github.com/rust-lang/trait-system-refactor-initiative/issues/8
 
 non-rigid aliases can always be generalized to an infer var, so we always do so. Old solver does not know whether aliases are rigid, so it only does so when encountering an occurs check failure https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L409
 
+This is problematic for non-hr aliases in hr aliases https://github.com/rust-lang/trait-system-refactor-initiative/issues/110 incompleteness jank
+
 handling of aliases with escaping bound vars is still scuffed https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L554
 
 ## New `FulfillmentContext`
@@ -49,6 +43,8 @@ handling of aliases with escaping bound vars is still scuffed https://github.com
 Selection is implemented separately from trait solving in the new solver. TODO WHY?
 
 This means trait solving and selection can differ in the way they handle candidate preference. Trait solving only merges user-written impl and the builtin trait object impl candidates if they have the same constraints, while selection needs to always prefer the builtin trait object impl.
+
+This means we cannot use these two interchangeably https://github.com/rust-lang/trait-system-refactor-initiative/issues/241
 
 THis feels outdated, do looky look :>
 
@@ -68,17 +64,27 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 
 ## Candidate preference
 
-We now merge where-clauses by checking the constraits in their query response instead of a syntactic check.
+We now merge where-clauses by checking the constraits in their query response instead of a syntactic check. TODO: does this result in behavior differences. TODO: YES no constraints + MAYBE sus https://rust-lang.zulipchat.com/#narrow/channel/144729-t-types/topic/resolving.20equal.20regions/near/623504310
 
 The candidate preference rules for `Trait` goals are the same as with the old solver since the FCP back in https://github.com/rust-lang/rust/pull/132325.
 
-This is not the case for `Projection` goals. The old solver prefers builtin trait object candidates over user-written impls while the new solver does not, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/101. 
+This is not the case for `Projection` goals. The old solver prefers builtin trait object candidates over user-written impls while the new solver does not, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/101.
+
+We also still intentionally prefer builtin trait-object candidates over impls to avoid breakage: https://github.com/rust-lang/trait-system-refactor-initiative/issues/183. We don't do so during normalization. This is a breaking change, but the affected code is very much unsound: https://github.com/rust-lang/trait-system-refactor-initiative/issues/253.
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/27
+
+TODO: link to source
 
 ## Query normalize is gone, is that useful?
 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/normalize.rs#L79
+
+## We have to be careful with nested queries to avoid cycles
+
+Behavior shared with the old solver, put still interesting is that we have to be careful to not even attempt to use impls if they are shadowed by a where-clause as doing so can cause query cycles, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/173.
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/185
 
 ## significant changes
 
@@ -86,11 +92,13 @@ https://rustc-dev-guide.rust-lang.org/solve/significant-changes.html
 
 - fixpoint when evaluating nested goals https://github.com/rust-lang/trait-system-refactor-initiative/issues/102
 
+eagerly proving nested goals + incompleteness https://github.com/rust-lang/trait-system-refactor-initiative/issues/97
+
 ## Leak check?
 
 make sure https://github.com/rust-lang/rust/pull/119820 is in the dev-guide :thinking:
 
-Behavior between the two olvers is the same since https://github.com/rust-lang/rust/pull/146725
+Behavior between the two olvers is the same since https://github.com/rust-lang/rust/pull/146725, not quite https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/HRTB.20oddity/with/623184908
 
 ## Region uniquification
 
@@ -105,4 +113,21 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/35
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/44
 
-continue with stuff after #104
+## Caching the unconstrained inference variables of normalization
+
+Minor breakage and jank https://github.com/rust-lang/trait-system-refactor-initiative/issues/215
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/275
+
+## Avoid assembling impls shadowed by where-bounds
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/226
+
+## looky look closures with non-identity args
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/243
+
+## trait solving changes can impact runtime behavior
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/298
+
