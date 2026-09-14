@@ -1,4 +1,4 @@
-# Next-generation trait solver alias types handling
+# Next-generation trait solver aliases and type relations
 
 ## Rigid alias marker
 
@@ -11,10 +11,6 @@ Changing the `ParamEnv` currently only happens by instantiating an `EarlyBinder`
 Handling changes to the `TypingMode` is a bit more fragile and requires us to be careful. This has caused some bugs in our refactoring. Note that this is already an issue with the currently stable normalization approach as it also had the concept of an alias being rigid, we simply did not track it explicitly.
 
 Making this concept explicit is necessary for "on-demand normalization" to avoid performance issues and to support the "`ParamEnv` normalization jank". We'd otherwise try to renormalize rigid aliases whenever we encounter them.
-
-## Deep normalization
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/normalize.rs#L35 TODO
 
 ## On-demand normalization
 
@@ -46,12 +42,13 @@ Interesting:
 
 This causes a lot of inference breakage, cc https://github.com/rust-lang/trait-system-refactor-initiative/issues/168
 
-## TODO
 
-normalization dev-guide chapter
+## Deep normalization implementation
 
-`reveal_opaque_types_in_bounds` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_middle/src/ty/mod.rs#L1215 TODO
+We replaced both [`normalize`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/normalize.rs#L35) and [`query_normalize`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/normalize.rs#L79) with a single unified [`deeply_normalize`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/solve/normalize.rs#L171) folder. It differs from the old solver normalization routines in a few ways, none of which are too impactful.
 
-what is `with_normalized` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_middle/src/ty/mod.rs#L1209
+We treat all aliases the same way: normalizing them by emitting a `Projection` goal. This matches the old solver's handling of associated types, but this now also applies to all other alias kinds: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/normalize.rs#L135). This means the normalization folder no longer needs to keep track of the recursion depth itself as the folder itself is guaranteed to not diverge, even as proving any single `Projection` goal may overflow.
 
-fun fact: can't actually require `T: Trait` to hold for rigid `<T as Trait>::Assoc` alias due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177
+The normalization folder also handles ambiguous normalization of aliases with escaping bound vars slightly differently. The old implementation can leak placeholders by constraining inference variables via ambiguous nested obligations later on. While theoretically observable, there is no known instance of this actually mattering: [old](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/normalize.rs#L222-L233) [new](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/normalize.rs#L55-L70). In general, bugs related to universe handling and type inference are rarely obserable, as the main region checking happens in MIR borrowck instead of during type inference itself.
+
+We now also *always* normalize opaque types while in their defining scope. I will explore this in more depth in a separate document.

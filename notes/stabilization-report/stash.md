@@ -76,24 +76,6 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/27
 
 TODO: link to source
 
-## Query normalize is gone, is that useful?
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/query/normalize.rs#L79
-
-## We have to be careful with nested queries to avoid cycles
-
-Behavior shared with the old solver, put still interesting is that we have to be careful to not even attempt to use impls if they are shadowed by a where-clause as doing so can cause query cycles, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/173.
-
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/185
-
-## significant changes
-
-https://rustc-dev-guide.rust-lang.org/solve/significant-changes.html
-
-- fixpoint when evaluating nested goals https://github.com/rust-lang/trait-system-refactor-initiative/issues/102
-
-eagerly proving nested goals + incompleteness https://github.com/rust-lang/trait-system-refactor-initiative/issues/97
-
 ## Leak check?
 
 make sure https://github.com/rust-lang/rust/pull/119820 is in the dev-guide :thinking:
