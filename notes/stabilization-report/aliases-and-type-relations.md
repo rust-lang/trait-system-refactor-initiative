@@ -12,7 +12,7 @@ Changing the `ParamEnv` mostly happens by instantiating an `EarlyBinder`. This r
 
 Handling changes to the `TypingMode` is a bit more fragile and requires us to be careful. This has caused some bugs in our refactoring, e.g. https://github.com/rust-lang/rust/pull/160125. Note that this is already an issue with the currently stable normalization approach as it also had the concept of an alias being rigid, we simply did not track it explicitly.
 
-TODO: wtf, compare_impl_item or what not jank with the extended param_env :<
+There are very few places where we use different `ParamEnv`s in the same context. These also need to manually handle aliases. TODO: wtf, compare_impl_item or what not jank with the extended param_env :<
 
 Making this concept explicit is necessary for "on-demand normalization" to avoid performance issues and to support the "`ParamEnv` normalization jank". We'd otherwise try to renormalize rigid aliases whenever we encounter them.
 
