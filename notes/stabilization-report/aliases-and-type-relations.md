@@ -1,4 +1,6 @@
-# Next-generation trait solver aliases and type relations
+# Next-generation trait solver: aliases and type relations
+
+The next-generation trait solver changes the way we handle aliases. This impacts both normalization and the way we relate types.
 
 ## Rigid alias marker
 
@@ -19,6 +21,8 @@ We also add support for on-demand normalization of aliases during type relations
 By doing so, we're fixing most of the issues when relating higher-ranked aliases:
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/9
 
+This causes by far the most breakage of the stabilization. See the description of https://github.com/rust-lang/trait-system-refactor-initiative/issues/168. Trying to FCW here is very challenging and this is very much intended breakage. I therefore think we should accept this. Most of the affected projects have been fixed. See https://github.com/rust-lang/rust/issues/160895 for the list of affected crates.
+
 ## Renormalize during writeback
 
 At the end of HIR typeck, writeback now explicitly normalizes all non-rigid aliases. This fixes a bunch of bugs around unnormalized aliases in the MIR body or during MIR building. It also allows us to remove a bunch of redundant normalization calls e.g. in [`TypeChecker::ascribe_user_type_skip_wf`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/canonical.rs#L291), [`TypeChecker::equate_normalized_input_or_output`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/input_output.rs#L235-L247),[`TypeChecker::relate_type_and_user_type`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/mod.rs#L493-L504)
@@ -37,11 +41,6 @@ We keep the behavior of the old solver but implement it differently. We explicit
 
 Interesting:
 - we do not mark constants as rigid, only types. This ends up matching the existing stable behavior, it matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
-
-## Relating higher-ranked aliases is no longer incomplete
-
-This causes a lot of inference breakage, cc https://github.com/rust-lang/trait-system-refactor-initiative/issues/168
-
 
 ## Deep normalization implementation
 

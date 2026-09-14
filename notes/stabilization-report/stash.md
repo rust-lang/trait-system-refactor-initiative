@@ -95,12 +95,6 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/35
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/44
 
-## Caching the unconstrained inference variables of normalization
-
-Minor breakage and jank https://github.com/rust-lang/trait-system-refactor-initiative/issues/215
-
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/275
-
 ## Avoid assembling impls shadowed by where-bounds
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/226
@@ -108,8 +102,3 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/226
 ## looky look closures with non-identity args
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/243
-
-## trait solving changes can impact runtime behavior
-
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/298
-

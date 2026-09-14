@@ -4,6 +4,10 @@ This is the main stabilization proposal for the next-generation trait solver. La
 
 ## Performance impact
 
+## Breaking changes
+
+We don't have an exact number here. We've had the new solver enabled on nightly for a while and all reported breakage has been tracked in https://github.com/rust-lang/rust/issues/160895. We separately did a bunch of crater runs in https://github.com/rust-lang/rust/pull/133502; including intended breakage we're at less than 500 affected crates. TODO: in more detail
+
 ## Minor changes to type inference
 
 ### Eagerly evaluating nested goals
@@ -14,7 +18,9 @@ We removed the split between evaluation and fulfillment. This impacts type infer
 
 ## Fun Facts
 
-These are not changes from the old solver, but instead interesting observations made while working towards its stabilization.
+These are not changes from the old solver, but instead interesting observations made while working on the new solver.
+
+Minor changes to incompleteness or type inference in general can result in *runtime behavior changes*, most notably by incompletely rejecting some candidates during method selection, e.g. hgttps://github.com/rust-lang/trait-system-refactor-initiative/issues/298.
 
 We can't actually require `T: Trait` to hold for rigid `<T as Trait>::Assoc` alias due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177. Proving `T: Trait` has stronger requirements than normalizing associated types.
 
