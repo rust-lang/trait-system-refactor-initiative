@@ -48,7 +48,7 @@ The old trait solver does not support on-demand normalization and instead normal
 
 We keep the behavior of the old solver but implement it differently. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle, but its behavior should effectively match the old trait solver. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
 
-Matching The actual behavior on stable here is quite subtle. We do not mark constants as rigid as the old solver eagerly normalizes all constants in an empty environment: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/mod.rs#L439-L525). This matches the existing stable behavior, but matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
+The actual behavior on stable here is quite subtle. We do not mark constants as rigid as the old solver eagerly normalizes all constants in an empty environment: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/mod.rs#L439-L525). This matches the existing stable behavior, but matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
 
 We also do not mark the normalized-to term of `Projection` clauses as rigid, as the old solver does treat the [output of `project`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/project.rs#L645) as unnormalized.
 
