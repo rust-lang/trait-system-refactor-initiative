@@ -22,8 +22,7 @@ We also add support for on-demand normalization of aliases during type relations
 
 This causes by far the most breakage of the stabilization. See the description of https://github.com/rust-lang/trait-system-refactor-initiative/issues/168. Trying to FCW here is very challenging and this is very much intended breakage. We should just accept this. See [the main stabilization proposal](https://github.com/rust-lang/trait-system-refactor-initiative/blob/main/notes/stabilization-report/meta.md#breaking-changes) for a complete overview of the resulting breakage.
 
-It also fixes a bunch of other minor issues when relating higher-ranked associated types, e.g. 
-By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
+It also fixes a bunch of other minor issues when relating higher-ranked associated types, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
 
 ## Type relations and generalization
 
