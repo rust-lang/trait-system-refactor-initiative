@@ -26,8 +26,7 @@ It also fixes a bunch of other minor issues when relating higher-ranked associat
 
 ## Type relations and generalization
 
-On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](
-By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9).
+On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/relate/solver_relating.rs#L197-L214). By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
 
 This means that we otherwise never encounter non-rigid aliases when relating types. Notably this also means that `generalize` never has to handle the `?x = <? as Trait>::Assoc` case, simplifying its implementation: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/relate/generalize.rs#L148-L193).
 
