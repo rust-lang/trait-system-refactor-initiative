@@ -10,7 +10,7 @@ The new solver includes a near complete rewrite of the way we handle opaque type
 
 Opaque types are aliases to their underlying type, the same way an associated type is an alias to the type specified in the relevant impl. This alias is *rigid* outside of the defining scope, and always normalizes to the underlying type inside of the defining scope. There are some hacks which treats them as kind of rigid in HIR typeck for the sake of type inference and backwards compatability. We'll discuss these later on.
 
-There are *defining* and *non-defining* uses of an opaque type, depending on whether the generic arguments of the opaque are generic parameters. A use during HIR typeck is defining if all type and const arguments are generic parameters, while a use during MIR borrowck is defining if all arguments are generic parameters, including regions. 
+There are *defining* and *non-defining* uses of an opaque type, depending on whether the generic arguments of the opaque are generic parameters. A use during HIR typeck is defining if all type and const arguments are generic parameters, while a use during MIR borrowck is defining if all arguments are generic parameters, including regions. If the arguments to the opaque type are defining, but the hidden type is not fully inferred, this is also considered a non-defining use.
 
 Whenever we encounter an opaque type in its defining scope we normalize it via a `Projection` goal. We never keep an opaque as rigid in its defining scope, allowing us to remove a bunch of hacks during MIR building and in the MIR itself, e.g.
 - [`ProjectionElem::OpaqueCast`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_public/src/mir/body.rs#L905)
@@ -38,13 +38,28 @@ This allows us to remove a bunch of hacky handling in functions which are concep
 
 ## Non-defining uses in the defining scope
 
-We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though.
+We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though. This is necessary as there are existing projects with recursive calls whose arguments are not generic parameters whose RPIT is treated as fully opaque with the old solver. As we now always normalize opaque types in their defining scopes, we need to support non-defining uses, e.g. in [wax-0.6](https://github.com/olson-sean-k/wax/blob/1afcda8318201afc04ebed06fea907d54fc1bf8c/src/token/mod.rs#L1058). We also frequently encounter recursive uses with local regions as arguments, e.g. in the [`gll`](https://github.com/rust-lang-nursery/gll/blob/3e82b327f5dff5a7ab2c7c20498b597a0d47b581/src/generate/rust.rs#L724-L727) crate. See https://github.com/rust-lang/types-team/issues/129 for more information.
 
-We need to support non-defining uses involving regions because otherwise e.g. the `wg-grammar` benchmark fails to compile.
+## General implementation details
 
-TODO https://github.com/rust-lang/trait-system-refactor-initiative/issues/135
+We store all uses of opaque types in their defining scope in the [`opaque_type_storage`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/mod.rs#L170-L171). The storage is a map from the opaque type `AliasTy` to its hidden type. This means we rely on structural identity of the opaque type arguments for lookup. As the keys can reference inference variables, canonical queries can return duplicate entries. That's kind of ugly and these entries are currently stored in a separate list: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L539-L552). 
+
+We provide the list of previous opaque type uses in the [`CanonicalInput`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/solve/mod.rs#L458). Opaque types are always normalized by using a `Projection` goal: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L83-L113). This may register a new defining use. These get returned as part of the [`ExternalConstraints`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1684-L1694).
 
 ## HIR typeck
+
+It's the responsibility of HIR typeck to figure out the hidden type of all opaque types in the defining scope. HIR typeck is shared by all nested bodies of a typeck root. At the end of HIR typeck, we require that there exists a defining for every opaque type defined by the current body: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L115-L215). Examples
+- `opaque<T, U> = Vec<U>` defining use
+- `opaque<T, T> = Vec<T>` non-defining use
+- `opaque<T, u32> = Vec<T>` non-defining use
+- `opaque<T, ?inf> = Vec<T>` non-defining use
+- `opaque<T, U> = Vec<?inf>` non-defining use because of hidden type
+- `opaque<T> = &'inf u32` defining use as HIR typeck ignores regions
+- `opaque<'?inf, T>` defining use as HIR typeck ignores regions
+
+If we found at least one defining use, we map the hidden type of that use to the defining scope of the opaque type, and then use that type to check all other uses of this opaque: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L139-L146). Given `opaque<T> = Vec<T>` and `opaque<?a> = ?b`, we'd use the defining use to check the non-defining use, constraining `?b` to `Vec<?a>`. 
+
+
 
 `try_handle_opaque_type_uses_next` and `handle_opaque_type_uses_next`
 
