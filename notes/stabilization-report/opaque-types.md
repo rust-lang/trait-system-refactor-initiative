@@ -57,17 +57,12 @@ It's the responsibility of HIR typeck to figure out the hidden type of all opaqu
 - `opaque<T> = &'inf u32` defining use as HIR typeck ignores regions
 - `opaque<'?inf, T>` defining use as HIR typeck ignores regions
 
-If we found at least one defining use, we map the hidden type of that use to the defining scope of the opaque type, and then use that type to check all other uses of this opaque: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L139-L146). Given `opaque<T> = Vec<T>` and `opaque<?a> = ?b`, we'd use the defining use to check the non-defining use, constraining `?b` to `Vec<?a>`. 
+If we found at least one defining use, we map the hidden type of that use to the defining scope of the opaque type, and then use that type to check all other uses of this opaque: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L139-L146). Given `opaque<T> = Vec<T>` and `opaque<?a> = ?b`, we'd use the defining use to check the non-defining use, constraining `?b` to `Vec<?a>`.
+
+As checking non-defining uses guides type inference, we need to do so before type inference fallback, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/207. We do this via [`fn try_handle_opaque_type_uses_next`](
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L232) which does not error if there is no defining use yet.
 
 
-
-`try_handle_opaque_type_uses_next` and `handle_opaque_type_uses_next`
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L232
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L259
-
-defining uses pre fallback and after fallback right before writeback: necessary for https://github.com/rust-lang/trait-system-refactor-initiative/issues/207
 
 `has_opaques_with_sub_unified_hidden_type` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/mod.rs#L1132 and opaques_with_sub_unified_hidden_type
 
