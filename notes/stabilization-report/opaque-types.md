@@ -1,8 +1,14 @@
 # Next-generation trait solver opaque type handling
 
+The new solver includes a near complete rewrite of the way we handle opaque types:
+- we always normalize opaque types to their hidden type in the defining scope.
+- we introduce the concept of *non-defining* - but revealing - uses in the defining scope.
+- to support recursive function calls, we have a few type inference hacks for *not-yet defined* opaques in their defining scope.
+
+
 ## High level mental model
 
-Opaque types are aliases to their underlying type, the same way an associated type is an alias to the type specified in the relevant impl. This alias is *rigid* outside of the defining scope, and always normalizes to the underlying type inside of the defining scope. There are some hacks which partially treat them as rigid in HIR typeck for the sake of type inference and backwards compatability. We'll discuss them later on.
+Opaque types are aliases to their underlying type, the same way an associated type is an alias to the type specified in the relevant impl. This alias is *rigid* outside of the defining scope, and always normalizes to the underlying type inside of the defining scope. There are some hacks which treats them as kind of rigid in HIR typeck for the sake of type inference and backwards compatability. We'll discuss these later on.
 
 There are *defining* and *non-defining* uses of an opaque type, depending on whether the generic arguments of the opaque are generic parameters. A use during HIR typeck is defining if all type and const arguments are generic parameters, while a use during MIR borrowck is defining if all arguments are generic parameters, including regions. 
 
@@ -13,22 +19,30 @@ Whenever we encounter an opaque type in its defining scope we normalize it via a
 - [`NllTypeRelating::relate_opaques`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/relate_tys.rs#L116)
 - [`NllTypeRelating::tys`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/relate_tys.rs#L428-L436) the call to `super_combine_tys` is fallible
 
-Looking up an opaque type in the `opaque_type_storage` is currently a structural lookup. The current state is an intermediate step towards effectively using higher-kinded inference variables to infer the hidden types of opaque types. See https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/584631784
+Looking up an opaque type in the `opaque_type_storage` is currently a structural lookup. The current state is an intermediate step towards effectively using higher-kinded inference variables to infer the hidden types of opaque types. See https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/584631784.
+
+TODO: will this make our long term goal worse? :<
 
 ## `TypingMode`
 
-We introduce the concept of a type `TypingMode` for the next-generation trait solver. This very explicitly represents the different stages during compilation. By far there biggest impact is on the way we handle opaque types:
+The behavior of the trait solver differs depending on the current `TypingMode`, which explicitly represents the different stages during compilation. Handling opaque types now relies on 2 additional `TypingMode`.
+
+Opaque types are handled as follows, depending on the stage we're in:
 - during `TypingMode::Coherence` normalizing opaque types is always ambiguous [source](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L28-L42)
-- we only use `TypingMode::Typeck` only during HIR typeck. This is used to infer the hidden type of the opaque modulo regions.
-- anything after that uses `TypingMode::PostTypeckUntilBorrowck`. Here we already know the hidden type modulo regions and either ignore regions or infer them during borrowck
-- user-facing analysis after borrowck uses `TypingMode::PostBorrowck`. We now fully know the hidden type of opaques in the defining scope
+- we use `TypingMode::Typeck` only during HIR typeck. This is used to infer the hidden type of the opaque modulo regions.
+- anything after that uses `TypingMode::PostTypeckUntilBorrowck`. Here we already know the hidden type modulo regions and either ignore regions or infer them during borrowck.
+- user-facing analysis after borrowck uses `TypingMode::PostBorrowck`. We now fully know the hidden type of opaques in the defining scope. 
 - after analysis we normalize all opaque types by simply using `type_of` to get their underlying type
 
 This allows us to remove a bunch of hacky handling in functions which are conceptually in the defining scope and which happen after HIR typeck, e.g. [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/check/check.rs#L415-L416). and [`fn check_coroutine_obligations`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165).
 
 ## Non-defining uses in the defining scope
 
-We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though. TODO https://github.com/rust-lang/trait-system-refactor-initiative/issues/135
+We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though.
+
+We need to support non-defining uses involving regions because otherwise e.g. the `wg-grammar` benchmark fails to compile.
+
+TODO https://github.com/rust-lang/trait-system-refactor-initiative/issues/135
 
 ## HIR typeck
 

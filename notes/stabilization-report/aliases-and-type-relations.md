@@ -12,7 +12,9 @@ Changing the `ParamEnv` mostly happens by instantiating an `EarlyBinder`. This r
 
 Handling changes to the `TypingMode` is a bit more fragile and requires us to be careful. This has caused some bugs in our refactoring, e.g. https://github.com/rust-lang/rust/pull/160125. Note that this is already an issue with the currently stable normalization approach as it also had the concept of an alias being rigid, we simply did not track it explicitly.
 
-There are very few places where we use different `ParamEnv`s in the same context. These also need to manually handle aliases. TODO: wtf, compare_impl_item or what not jank with the extended param_env :<
+There are very few places where we use different `ParamEnv`s in the same context. These also need to manually handle aliases. The main example here is [`fn check_type_bounds`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_hir_analysis/src/check/compare_impl_item.rs#L2544-L2560). This concrete code is broken in two ways, both of which don't matter enough for me to even bother with writing a test:
+- while we normalize the GAT in obligations, we don't normalize its occurances in the `ParamEnv`. Occurances of the GAT in where-clauses therefore remain rigid.
+- normalizing with additional where-clauses can mark aliases as rigid because we end up shadowing an impl with a where-clause. This means the obligations now have aliases which are incorrectly marked as rigid.
 
 Making this concept explicit is necessary for "on-demand normalization" to avoid performance issues and to support the "`ParamEnv` normalization jank". We'd otherwise try to renormalize rigid aliases whenever we encounter them.
 
