@@ -46,6 +46,8 @@ We store all uses of opaque types in their defining scope in the [`opaque_type_s
 
 We provide the list of previous opaque type uses in the [`CanonicalInput`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/solve/mod.rs#L458). Opaque types are always normalized by using a `Projection` goal: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L83-L113). This may register a new defining use. These get returned as part of the [`ExternalConstraints`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1684-L1694).
 
+With the old solver we sometimes eagerly replaced opaque types with inference variables via [`InferCtxt::replace_opaque_types_with_inference_vars`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L26). We no longer do so with the new solver. This was necessary to avoid incorrectly treating these opaque types as rigid. We no longer need to do so with the new solver.
+
 ## HIR typeck
 
 It's the responsibility of HIR typeck to figure out the hidden type of all opaque types in the defining scope. HIR typeck is shared by all nested bodies of a typeck root. At the end of HIR typeck, we require that there exists a defining for every opaque type defined by the current body: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L115-L215). Examples
@@ -62,13 +64,9 @@ If we found at least one defining use, we map the hidden type of that use to the
 As checking non-defining uses guides type inference, we need to do so before type inference fallback, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/207. We do this via [`fn try_handle_opaque_type_uses_next`](
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L232) which does not error if there is no defining use yet.
 
+One major annoyance are recursive uses of opaque types. With the old solver recursive calls to the current function often left its RPIT as rigid while we now eagerly normalize it to an unconstrained inference variable. That's an issue as it was possible to call methods on that type or to rely on the item bounds of the opaque. To avoid breakage we're adding some hacks to treat the hidden type of opaques as if they were *kind of rigid*. While this works quite well, it's not principled and somewhat of a mess.
 
-
-`has_opaques_with_sub_unified_hidden_type` https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/mod.rs#L1132 and opaques_with_sub_unified_hidden_type
-
-With the old solver we eagerly replaced opaque types in the return type with an inference variable via [`InferCtxt::replace_opaque_types_with_inference_vars`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L26). We no longer do so with the new solver. This was necessary as the old solver sometimes incorrectly treated opaque types as rigid in their defining scope.
-
-All of the inference guidance for not-yet defined opaque types checks whether an inference variable is sub-unified with the hidden type of an opaque, not the hidden type of an opaque type itself.
+There are a few different hacks here, all of which rely on whether an inference variable has been sub-unified with the hidden type of an opaque type, e.g. see [`fn has_opaques_with_sub_unified_hidden_type`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/mod.rs#L1132). We rely on sub-unification here as subtyping is just incredibly prevalent.
 
 ### Inference guidance for obligations involving not-yet defined opaque types
 
