@@ -64,13 +64,32 @@ If we found at least one defining use, we map the hidden type of that use to the
 As checking non-defining uses guides type inference, we need to do so before type inference fallback, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/207. We do this via [`fn try_handle_opaque_type_uses_next`](
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/lib.rs#L232) which does not error if there is no defining use yet.
 
-One major annoyance are recursive uses of opaque types. With the old solver recursive calls to the current function often left its RPIT as rigid while we now eagerly normalize it to an unconstrained inference variable. That's an issue as it was possible to call methods on that type or to rely on the item bounds of the opaque. To avoid breakage we're adding some hacks to treat the hidden type of opaques as if they were *kind of rigid*. While this works quite well, it's not principled and somewhat of a mess.
+### Pseudo-rigid inference variables
 
-There are a few different hacks here, all of which rely on whether an inference variable has been sub-unified with the hidden type of an opaque type, e.g. see [`fn has_opaques_with_sub_unified_hidden_type`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/mod.rs#L1132). We rely on sub-unification here as subtyping is just incredibly prevalent.
+One major annoyance are recursive uses of opaque types. With the old solver recursive calls to the current function often left its RPIT as rigid while we now eagerly normalize it to an unconstrained inference variable. It is currently possible to call methods on - or to rely on the item bounds of - the opaque.
+
+To avoid breakage we're introducing the concept of an inference variable being *pseudo rigid*. We use this for the hidden-types of opaques and unconstrained associated types of other pseudo rigid inference variables. We rely on sub-unification here as subtyping is just incredibly prevalent. This works fairly well, even if it is a unprincipled hack. 
+
+This hack also extend to associated types of not-yet defined opaque types. See the tests added in https://github.com/rust-lang/rust/pull/161414 for why this is necessary.
 
 ### Inference guidance for obligations involving not-yet defined opaque types
 
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/182
+ We sometimes call methods on associated types of not-yet defined opaque types, e.g.
+
+```rust
+fn foo(b: bool) -> impl Iterator<Item = u32> {
+    if b {
+        for i in foo(false) {
+            println!("{}", i.count_ones());
+        }
+    }
+
+    vec![1].into_iter()
+}
+```
+
+
+See https://github.com/rust-lang/trait-system-refactor-initiative/issues/182 
 
 TODO: https://github.com/rust-lang/rust/pull/161414
 
@@ -101,13 +120,23 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/181
 
 ### Other places treating opaque types as rigid
 
+### Handling unconstrained associated types of opaques 
+
 ## MIR borrowck
 
-Fun stuff, TODO link to PR and a bit of explanation
+The MIR borrowck algorithm has been implemented in https://github.com/rust-lang/rust/pull/145244 and https://github.com/rust-lang/rust/pull/145925.
+
+TODO: quick explanation
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
 
 ## Lints and MIR building
+
+## `TypingMode::ErasedNonCoherence`
+
+We also implemented a performance optimization to cache goals between HIR typeck and other parts of the compiler if they don't depend on opaques or the current `TypingMode`. This does not impact behavior, but significantly improves crates like `wg-grammar`. See https://github.com/rust-lang/rust/pull/155443.
+
+The core idea is that instead of proving a goal in the current `TypingMode`, we may first run it with `TypingMode::ErasedNotCoherence`. We then track whether we did anything that relies on the current `TypingMode` and if so, we rerun this goal while providing the actual `TypingMode` this time.
 
 ## Miscellaneous changes and open issues
 
