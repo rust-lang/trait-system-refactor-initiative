@@ -8,6 +8,14 @@ This is the main stabilization proposal for the next-generation trait solver. La
 
 We don't have an exact number here. We've had the new solver enabled on nightly for a while and all reported breakage has been tracked in https://github.com/rust-lang/rust/issues/160895. We separately did a bunch of crater runs in https://github.com/rust-lang/rust/pull/133502; including intended breakage we're at less than 500 affected crates. TODO: in more detail
 
+## Future work
+
+The new solver is far from perfect. We're partially just maintaining the status quo, but also some of our changes are not great and should be improved long term.
+- opaque type handling and relying on structural identity, higher-ranked inference variables
+- overflow handling, relying on hitting the recursion limit being non-fatal, `NestedGoals`
+- borrowck being per body instead of per typeck root
+- `ParamEnv` normalization is still shit
+
 ## Minor changes to type inference
 
 ### Eagerly evaluating nested goals
