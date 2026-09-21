@@ -149,12 +149,6 @@ If we're before MIR borrowck and ignore regions, we use `TypingMode::PostTypeckT
 
 If we're after MIR borrowck, we use `TypingMode::PostBorrowck`. At this point, we know the hidden type  considering regions, so we just normalize opaque types to that type. This is used by [late lints](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_lint/src/context.rs#L638-L647) and [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_hir_analysis/src/check/check.rs#L314).
 
-## `TypingMode::ErasedNonCoherence`
-
-We also implemented a performance optimization to cache goals between HIR typeck and other parts of the compiler if they don't depend on opaques or the current `TypingMode`. This does not impact behavior, but significantly improves crates like `wg-grammar`. See https://github.com/rust-lang/rust/pull/155443.
-
-The core idea is that instead of proving a goal in the current `TypingMode`, we may first run it with `TypingMode::ErasedNotCoherence`. We then track whether we did anything that relies on the current `TypingMode` and if so, we rerun this goal while providing the actual `TypingMode` this time.
-
 ## Miscellaneous changes and open issues
 
 We now always require defining scopes to actually provide a value for the hidden type of an opaque type and not doing so now eagerly results in a hard error. This means we no longer have to provide a default value in [`fn type_of` for RPITs](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/collect/type_of/opaque.rs#L260-L269). This is a minor breakage as it causes the following to now error:

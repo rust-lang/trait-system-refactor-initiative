@@ -62,6 +62,8 @@ The actual behavior on stable here is quite subtle. We do not mark constants as 
 
 We also do not mark the normalized-to term of `Projection` clauses as rigid, as the old solver does treat the [output of `project`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/project.rs#L645) as unnormalized.
 
+The old solver had to eagerly normalize constants during `ParamEnv` normalization. By keeping them as non-rigid, this is now unnecessary with the new solver: [source](https://github.com/rust-lang/rust/blob/f45772eb69d6ed3cc23be40625411a75f9f32c9d/compiler/rustc_trait_selection/src/traits/mod.rs#L457-L492).
+
 ## Renormalize during writeback
 
 At the end of HIR typeck, writeback now explicitly normalizes all non-rigid aliases. This fixes a bunch of bugs around unnormalized aliases in the MIR body or during MIR building. It also allows us to remove a bunch of redundant normalization calls e.g. in [`TypeChecker::ascribe_user_type_skip_wf`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/canonical.rs#L291), [`TypeChecker::equate_normalized_input_or_output`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/input_output.rs#L235-L247),[`TypeChecker::relate_type_and_user_type`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/mod.rs#L493-L504)
