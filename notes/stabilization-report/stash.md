@@ -5,21 +5,7 @@ A temporary stash of things worthy of documentation found while working towards 
 
 ## New `FulfillmentContext`
 
-## Reimplementing `select`
 
-Selection is implemented separately from trait solving in the new solver. TODO WHY?
-
-This means trait solving and selection can differ in the way they handle candidate preference. Trait solving only merges user-written impl and the builtin trait object impl candidates if they have the same constraints, while selection needs to always prefer the builtin trait object impl.
-
-This means we cannot use these two interchangeably https://github.com/rust-lang/trait-system-refactor-initiative/issues/241
-
-THis feels outdated, do looky look :>
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/solve/select.rs#L20
-
-## Reimplementing rustdoc auto-trait impl generation
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L84-L91
 
 ## Const generics
 
@@ -49,11 +35,6 @@ make sure https://github.com/rust-lang/rust/pull/119820 is in the dev-guide :thi
 
 Behavior between the two olvers is the same since https://github.com/rust-lang/rust/pull/146725, not quite https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/HRTB.20oddity/with/623184908
 
-## Region uniquification
-
-damn, wtf is that shit
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/30
-
 ## Overlapping impl candidates are blocking :>
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/35
@@ -66,6 +47,3 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/44
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/226
 
-## looky look closures with non-identity args
-
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/243

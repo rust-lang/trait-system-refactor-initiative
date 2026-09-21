@@ -16,6 +16,14 @@ The new solver is far from perfect. We're partially just maintaining the status 
 - borrowck being per body instead of per typeck root
 - `ParamEnv` normalization is still shit
 
+## rustdoc auto-trait impl generation
+
+The way we compute the auto-trait implementations for rustdoc depends on old solver internals.
+
+For now we've implemented a far simpler and weaker alternative. This is ideal, see https://github.com/rust-lang/rust/issues/162274. We should improve this as we move forward.
+
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L187
+
 ## Minor changes to type inference
 
 ### Eagerly evaluating nested goals
