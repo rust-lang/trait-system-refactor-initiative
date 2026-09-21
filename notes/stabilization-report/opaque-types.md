@@ -178,6 +178,8 @@ There's one weird footgun for `Copy` and `FnMut` closures. We should write a lin
 
 There are places which currently use `structurally_resolve_type` which break with the new solver and opaque types https://github.com/rust-lang/trait-system-refactor-initiative/issues/231
 
+Non-defining uses can result in coroutines and closures with non-identity arguments during analysis. I didn't look too deeply into it, but think this is be fine, even if there are minor bugs here because of it https://github.com/rust-lang/trait-system-refactor-initiative/issues/243
+
 ## The shiny future
 
 In the long term I want to change opaque type inference to use higher-kinded inference variables. I also want to change MIR borrowck to use a single `InferCtxt` for all nested bodies instead of being per body. This would make the quite involved setup of https://github.com/rust-lang/rust/pull/145925 unnecessary.
