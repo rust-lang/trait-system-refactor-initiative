@@ -30,7 +30,7 @@ The behavior of the trait solver differs depending on the current `TypingMode`, 
 Opaque types are handled as follows, depending on the stage we're in:
 - during `TypingMode::Coherence` normalizing opaque types is always ambiguous [source](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L28-L42)
 - we use `TypingMode::Typeck` only during HIR typeck. This is used to infer the hidden type of the opaque modulo regions.
-- anything after that uses `TypingMode::PostTypeckUntilBorrowck`. Here we already know the hidden type modulo regions and either ignore regions or infer them during borrowck.
+- anything after that uses `TypingMode::PostTypeckThroughBorrowck`. Here we already know the hidden type modulo regions and either ignore regions or infer them during borrowck.
 - user-facing analysis after borrowck uses `TypingMode::PostBorrowck`. We now fully know the hidden type of opaques in the defining scope. 
 - after analysis we normalize all opaque types by simply using `type_of` to get their underlying type
 
@@ -126,11 +126,28 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/181
 
 The MIR borrowck algorithm has been implemented in https://github.com/rust-lang/rust/pull/145244 and https://github.com/rust-lang/rust/pull/145925.
 
-TODO: quick explanation
+The general opaque type handling algorithm is as follows and has been implemented in https://github.com/rust-lang/rust/pull/145244 and https://github.com/rust-lang/rust/pull/152218:
+- any time we normalize an opaque type during MIR borrowck, it starts out as the defining type modulo regions computed during HIR typeck: [source](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L83-L113)
+- we collect all uses with defining opaque type arguments, i.e. where all arguments are unique generic parameters
+- we apply member constraints for all these uses
+- with this, we now check whether there's at least one defining use, i.e. whether the hidden type only mentions arguments of the opaque, and use it to compute the definition site hidden type.
+- we use this hidden type to check all uses of the opaque
+
+This is more permissive than stable in two ways:
+- we allow uses of opaque types with non-defining arguments
+- we allow uses of opaque types with defining arguments, but with an unconstrained hidden type. This is necessary for https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
+
+https://github.com/rust-lang/rust/pull/145925 extends this algorithm to add support for nested bodies. See the description of that PR for more detail. This is necessary to support a defining use in the parent body being used for a non-defining use in a nested body.
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
 
 ## Lints and MIR building
+
+With the old solver, there are a lot of queries which are conceptionally inside of a body, but don't handle opaque types correctly. We now do one of the following for these cases:
+
+If we're before MIR borrowck and ignore regions, we use `TypingMode::PostTypeckThroughBorrowck`. This uses the definition site hidden type modulo regions computed by HIR typeck, with all free regions instantiated with fresh inference variables. This is only fine if we don't care about region constraints. It's used for example by MIR building, [`fn check_coroutine_obligations`](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_hir_analysis/src/check/check.rs#L2325), and [unsafety checking](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_mir_build/src/check_unsafety.rs#L1093).
+
+If we're after MIR borrowck, we use `TypingMode::PostBorrowck`. At this point, we know the hidden type  considering regions, so we just normalize opaque types to that type. This is used by [late lints](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_lint/src/context.rs#L638-L647) and [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/220b36c420c49c59923f54cd4a76634fac98a067/compiler/rustc_hir_analysis/src/check/check.rs#L314).
 
 ## `TypingMode::ErasedNonCoherence`
 
@@ -157,10 +174,12 @@ Opaque types in dead code still getting defined in MIR borrowck, constraining re
 
 Applying member constraints can be incomplete. This means new non-defining uses can theoretically result in unnecessary region constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/227
 
-There's one weird footgun for `Copy` and `FnMut` closures. We should lint there or sth https://github.com/rust-lang/trait-system-refactor-initiative/issues/230 
+There's one weird footgun for `Copy` and `FnMut` closures. We should write a lint for this https://github.com/rust-lang/trait-system-refactor-initiative/issues/230 
 
 There are places which currently use `structurally_resolve_type` which break with the new solver and opaque types https://github.com/rust-lang/trait-system-refactor-initiative/issues/231
 
 ## The shiny future
+
+In the long term I want to change opaque type inference to use higher-kinded inference variables. I also want to change MIR borrowck to use a single `InferCtxt` for all nested bodies instead of being per body. This would make the quite involved setup of https://github.com/rust-lang/rust/pull/145925 unnecessary.
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/271 / https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/opaque.20types.20high.20hopes/with/619467087
