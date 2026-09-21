@@ -28,13 +28,23 @@ It also fixes a bunch of other minor issues when relating higher-ranked associat
 
 ## Type relations and generalization
 
-On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/relate/solver_relating.rs#L197-L214). By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
+On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. We split type equality between the two solver with the new solver using [`SolverRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_type_ir/src/relate/solver_relating.rs#L43) and the old one uses [`TypeRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_infer/src/infer/relate/type_relating.rs#L15). When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/relate/solver_relating.rs#L197-L214). By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
 
-This means that we otherwise never encounter non-rigid aliases when relating types. Notably this also means that `generalize` never has to handle the `?x = <? as Trait>::Assoc` case, simplifying its implementation: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/relate/generalize.rs#L148-L193).
+### Generalization
+
+We never encounter non-rigid aliases after that when relating types. Notably this also means that `generalize` never has to handle the `?x = <? as Trait>::Assoc` case, simplifying its implementation: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/relate/generalize.rs#L148-L193).
 
 The fact that we now have an explicit `IsRigid` marker also allows generalization to always replace non-rigid aliases with inference variables, instead of only doing it if there is an occurs check failure: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/relate/generalize.rs#L411-L412). Unfortunately, higher-ranked aliases are still kind of scuffed and we need to keep most of the old solver complexity here.
 
-Having an explicit `IsRigid` marker also means that `fast_reject` structurally relate rigid aliases: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/fast_reject.rs#L353-L365).
+The way we handle higher-ranked aliases is still incomplete in some cases, even if it's significantly better than with the old solver. There are some remaining issues.
+
+Generalization still keeps non-rigid higher-ranked aliases around, which can be incomplete. See https://github.com/rust-lang/rust/issues/161404 for an example. Fixing this properly likely relies on higher-kinded inference variables. We could alternatively defer type relations when entering a binder to avoid this incompleteness.
+
+Because we now always normalize non-rigid aliases before relating them, we must be careful to not generalize inference variables inside of non-rigid higher-ranked aliases, as that can otherwise result in unavoidable ambiguity errors: [source](https://github.com/rust-lang/rust/blob/32e1cf827d2a7880bb40efbe35e6391d9ba6225d/compiler/rustc_infer/src/infer/relate/generalize.rs#L535-L555).
+
+### `fast_reject`
+
+Having an explicit `IsRigid` marker also means that `fast_reject` structurally relates rigid aliases: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/fast_reject.rs#L353-L365).
 
 ## `ParamEnv` normalization jank
 

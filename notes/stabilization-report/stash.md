@@ -2,26 +2,6 @@
 
 A temporary stash of things worthy of documentation found while working towards the stabilization.
 
-## `if cx.next_trait_solver()` triage
-
-
-add_item_bounds_for_hidden_type https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/opaque_types/mod.rs#L297 is weird, what's going on there
-
-## Entirely different type relations
-
-`NextSolverRelate` vs `TypeRelating` :thinking: https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165
-
-what exactly are the differences here?
-
-`generalize` never tries to generalize non-rigid aliases https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L163-L166
-
-impact on https://github.com/rust-lang/trait-system-refactor-initiative/issues/8
-
-non-rigid aliases can always be generalized to an infer var, so we always do so. Old solver does not know whether aliases are rigid, so it only does so when encountering an occurs check failure https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L409
-
-This is problematic for non-hr aliases in hr aliases https://github.com/rust-lang/trait-system-refactor-initiative/issues/110 incompleteness jank
-
-handling of aliases with escaping bound vars is still scuffed https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/relate/generalize.rs#L554
 
 ## New `FulfillmentContext`
 
