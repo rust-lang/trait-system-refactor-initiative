@@ -16,6 +16,8 @@ We removed the split between evaluation and fulfillment. This impacts type infer
 - selection now runs nested goals until reaching a fixpoint, slightly strengthening inference https://github.com/rust-lang/trait-system-refactor-initiative/issues/102
 - selection currently does not try to prove nested goals if there's only one candidate, which changes the order in which we evaluate goals and is theoretically breaking https://github.com/rust-lang/trait-system-refactor-initiative/issues/97
 
+The removal of this difference also allows us to cleanup some existing hacks, notably in [`fn pred_known_to_hold_modulo_regions`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/mod.rs#L230-L251).
+
 ## Fun Facts
 
 These are not changes from the old solver, but instead interesting observations made while working on the new solver.

@@ -139,7 +139,7 @@ This is more permissive than stable in two ways:
 
 https://github.com/rust-lang/rust/pull/145925 extends this algorithm to add support for nested bodies. See the description of that PR for more detail. This is necessary to support a defining use in the parent body being used for a non-defining use in a nested body.
 
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
+We previously FCP'd to forbid uses of opaque types which only differ in their lifetime arguments during MIR borrowck in https://github.com/rust-lang/rust/pull/116935#issuecomment-1807243974. This actually did not end up being necessary after all. See the [region uniquification](./region-uniquification.md) document for more details here. We don't have to uniquify regions in MIR borrowck and our long-term vision for the opaque type handling will no longer rely on structural equality at all. We're removing this restriction.
 
 ## Lints and MIR building
 
