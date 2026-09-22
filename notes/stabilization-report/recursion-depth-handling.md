@@ -16,20 +16,30 @@ This also results in subtle new invariants of the type system. Whether we hit th
 - difference in layout or `fn codegen_select_candidate` depending on whether a goal overflows
 - treating overflow results as a proof of something not being possible, e.g. in `fn impossible_predicates`
 
+I think we're currently fine here. It is an annoying invariant to keep in mind however.
+
 ### Discarding nested constraints on overflow
 
-To avoid hangs, we drop nested constraints. This causes problems https://github.com/rust-lang/trait-system-refactor-initiative/issues/274
+To avoid hangs, we drop nested constraints if a goal encountered overflow: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1586-L1606). This is necessary as it's otherwise very easy to get exponentially large types which results in hangs and out of memory errors. Discarding these constraints does result in some issues, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/274. 
 
 ### Dividing the available depth when encountering overflow
 
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/276
+Another source of exponential blowup is overflow where there are multiple candidates or overflowing goals per step. This way it's easy to get an exponential amount of goals. We avoid this by dividing the remaining available depth for nested goals by 4 once at least one nested goal hit the overflow limit: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_type_ir/src/search_graph/mod.rs#L288-L319).
+
+This is necessary for `typenum`, see https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_type_ir/src/search_graph/mod.rs#L288-L319. However, it can unfortunately also result in breakage, even if there's currently no known affected project https://github.com/rust-lang/trait-system-refactor-initiative/issues/276.
 
 ### Long term plan
 
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/278
+My long term goal is to remove the reliance on non-fatal overflow again. Ideally we'd have some way to detect diverging paths in the trait solver and abort them because of that.
+
+This is hard to do soundly if we have a global cache as it very easily makes goals depend on the current stack. We must also avoid breaking code which would otherwise compile.
+
+The current setup works well enough, even if it is very much not ideal. I opened https://github.com/rust-lang/trait-system-refactor-initiative/issues/278 to track this.
 
 ## Properly tracking the required `recursion_depth`
 
-https://github.com/rust-lang/rust/pull/159224
+The old solver does not store the required depth for a goal in its cache. There are a bunch of crates which rely on that.
 
-https://github.com/rust-lang/rust/pull/162275
+To avoid breakage, we're now rerunning overflowing goals with twice the available depth and emit a FCW if that succeeds, see https://github.com/rust-lang/rust/issues/159228.
+
+To reduce the impact of tracking the recursion depth correctly, we're also not increasing the required depth when proving auto traits for opaque types and coroutine witnesses https://github.com/rust-lang/rust/issues/159228.
