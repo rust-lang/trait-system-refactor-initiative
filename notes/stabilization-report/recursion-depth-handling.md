@@ -8,11 +8,13 @@ As crates can successfully compile even if they hit the recursion limit, increas
 
 This is partialy necessary due to the removal of [`fn match_fresh_trait_preds`](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1213-L1226) https://github.com/rust-lang/trait-system-refactor-initiative/issues/56. We've removed this as it made the global cache observable, which is incorrect wrt incremental compilation.
 
-Hitting overflow during `fulfill` is fatal, so are overflow errors in `query_normalize`. This is mainly as there's very little use in allowing that, it matches the old solver, and supporting non-fatal overflow here is challenging.
+Hitting overflow during `fulfill` is fatal, and so are overflow errors in `query_normalize`. This is mainly as there's very little use in allowing that, it matches the old solver, and supporting non-fatal overflow here is challenging.
 
 This means proving things slightly differently between HIR typeck and MIR borrowck can result in ICE. This is subtle and might end up being annoying to handle: https://github.com/rust-lang/trait-system-refactor-initiative/issues/238. Alternatively, we could change overflow during MIR borrowck to be fatal. This would not be breaking.
 
-TODO: https://github.com/rust-lang/trait-system-refactor-initiative/issues/258 :<
+This also results in subtle new invariants of the type system. Whether we hit the overflow limit can differ between crates in the dependency graph, which could theoretically result in unsoudness: https://github.com/rust-lang/trait-system-refactor-initiative/issues/258
+- difference in layout or `fn codegen_select_candidate` depending on whether a goal overflows
+- treating overflow results as a proof of something not being possible, e.g. in `fn impossible_predicates`
 
 ### Discarding nested constraints on overflow
 
