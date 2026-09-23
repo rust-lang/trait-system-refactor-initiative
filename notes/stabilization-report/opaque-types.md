@@ -5,6 +5,15 @@ The new solver includes a near complete rewrite of the way we handle opaque type
 - we introduce the concept of *non-defining* - but revealing - uses in the defining scope.
 - to support recursive function calls, we have a few type inference hacks for *not-yet defined* opaques in their defining scope.
 
+TOOD: make it more explicit why the changes happen
+
+TODO: more generally
+- why changes necessary as part of new solver
+- could this have happened separate in old solver
+- does this change how to think about the trait solver
+- hack vs underlying model
+
+TODO: links to weird jank that's now fixed!
 
 ## High level mental model
 

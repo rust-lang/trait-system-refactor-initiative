@@ -1,6 +1,8 @@
 # Next-generation trait solver: aliases and type relations
 
-The next-generation trait solver changes the way we handle aliases. This impacts both normalization and the way we relate types. Changes to the way we handle opaque types are discussed in [a separate document](https://github.com/rust-lang/trait-system-refactor-initiative/blob/main/notes/stabilization-report/opaque-types.md).
+The next-generation trait solver changes the way we handle aliases. This impacts both normalization and the way we relate types. Changes to the way we handle opaque types are discussed in [a separate document](https://github.com/rust-lang/trait-system-refactor-initiative/blob/main/notes/stabilization-report/opaque-types.md):
+- we now explicitly track whether an alias is rigid in its current scope
+- we normalize aliases on demand where necessary, e.g. in type relations
 
 ## Rigid alias marker
 
