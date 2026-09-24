@@ -11,9 +11,3 @@ This is not the case for `Projection` goals. The old solver prefers builtin trai
 We also still intentionally prefer builtin trait-object candidates over impls to avoid breakage: https://github.com/rust-lang/trait-system-refactor-initiative/issues/183. We don't do so during normalization. This is a breaking change, but the affected code is very much unsound: https://github.com/rust-lang/trait-system-refactor-initiative/issues/253.
 
 https://github.com/rust-lang/trait-system-refactor-initiative/issues/27
-
-## Avoid assembling impls shadowed by where-bounds
-
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/226
-
-## 

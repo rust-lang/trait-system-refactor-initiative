@@ -18,9 +18,15 @@ There are a lot of technical nuances and implementation choices here. Not all of
 
 ## Performance impact
 
+TODO: up-to-date table by Jana :>
+
+mostly neutral, sometimes slower, sometimes faster, a lot of space to optimize going forward.
+
 ## Breaking changes
 
-We don't have an exact number here. We've had the new solver enabled on nightly for a while and all reported breakage has been tracked in https://github.com/rust-lang/rust/issues/160895. We separately did a bunch of crater runs in https://github.com/rust-lang/rust/pull/133502; including intended breakage we're at less than 500 affected crates. TODO: in more detail
+We don't have an exact number here. We've had the new solver enabled on nightly for a while and all reported breakage has been tracked in https://github.com/rust-lang/rust/issues/160895. We separately did a bunch of crater runs in https://github.com/rust-lang/rust/pull/133502; including intended breakage we're at less than 500 affected crates. 
+
+TODO: in more detail
 
 ## Future work
 

@@ -1,5 +1,7 @@
 # Canonicalization, caching, and cycle handling
 
+There are a bunch of technical details and minor changes related to canonicalization, caching, and the way trait solver cycles are handled. The most notable change is that cycles are now considered coinductive if they have at least one productive step, where a productive step is proving a where-clause of an impl. 
+
 ## Canonicalization
 
 With the new trait solver we're now canonicalizing at every step in the trait solver. We've implemented a new canonicalization routine for this: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L55). We still use the existing canonicalization routine in some places, more on that later.
