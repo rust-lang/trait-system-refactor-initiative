@@ -59,19 +59,12 @@ As the new solver does not have different implementations for fulfill and evalua
 
 The new solver nearly perfectly matches the old solver now. However, evaluate in the old solver does apply constraints from nested `Projection` obligations, as they can constrain otherwise unconstrained inference variables. This also allows `Projection` goals to otherwise influence its parent obligation by returning constraints from matching the impl header. This is one case where the the implementation of the new solver will actually weaken the leak check. I don't think anyone relied on this. See the test added in https://github.com/rust-lang/rust/pull/163271.
 
-
-Behavior between the two solvers is the same since https://github.com/rust-lang/rust/pull/146725, not quite https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/HRTB.20oddity/with/623184908
-
-
-
-
 ## rustdoc auto-trait impl generation
 
 The way we compute the auto-trait implementations for rustdoc depends on old solver internals.
 
-For now we've implemented a far simpler and weaker alternative. This is ideal, see https://github.com/rust-lang/rust/issues/162274. We should improve this as we move forward.
-
-https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L187
+For now we've implemented a far simpler and weaker alternative 
+https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L187. This alternative is very limited however, see https://github.com/rust-lang/rust/issues/162274. We should improve this as we move forward.
 
 ## Minor changes to type inference
 
