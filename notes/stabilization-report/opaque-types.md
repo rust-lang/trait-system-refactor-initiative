@@ -177,7 +177,7 @@ The fact that we can always normalize opaque types in their defining scope means
 
 We previously didn't normalize opaque types when checking region constraints. Doing so allows more code to compile: https://github.com/rust-lang/trait-system-refactor-initiative/issues/112
 
-Opaque types in dead code still getting defined in MIR borrowck, and we tend to constrain there regions to `'static` via member constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/170
+Opaque types in dead code still getting defined in MIR borrowck, and we tend to constrain these regions to `'static` via member constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/170
 
 Applying member constraints can be incomplete. This means new non-defining uses can theoretically result in unnecessary region constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/227
 
