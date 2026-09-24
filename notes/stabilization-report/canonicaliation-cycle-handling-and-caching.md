@@ -43,13 +43,9 @@ The new solver also has some local caches, e.g. [in generalization](https://gith
 
 The next-generation trait solver handles cycles differently than the old solver. This change is necessary due to https://github.com/rust-lang/trait-system-refactor-initiative/issues/10. The old trait solver did not track cycle participants sufficiently. This change more closely matches my current intuition of what cycles are and how to deal with them. However, we're still far from fully figuring this out and there are some open questions we're going to ignore as part of this stabilization.
 
-A cycle is now considered coinductive if at least one step is productive. In the old cycles were only coinductive if all goals involved in the cycle were coinductive. Importantly, whether a cycle is coinductive does not depend on the goals in the cycle, but the steps between goals; the reason why were proving nested goals: [source](https://github.com/rust-lang/rust/blob/28b5293debd90e0ad9b8ccb937c03e499cfc2170/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L430-L469).
+A cycle is now considered coinductive if at least one step is productive. In the old cycles were only coinductive if all goals involved in the cycle were coinductive. Importantly, whether a cycle is coinductive does not depend on the goals in the cycle, but the steps between goals; the reason why were proving nested goals: [source](https://github.com/rust-lang/rust/blob/28b5293debd90e0ad9b8ccb937c03e499cfc2170/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L430-L469). This does not affect too much code. See https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/tests/ui/traits/next-solver/cycles/coinduction/only-one-coinductive-step-needed.rs for an example of what's allowed now.
 
 If a cycle is coinductive, its initial provisional value is `Certainty::Yes` with no constraints, otherwise we return overflow. In the medium term, we'll likely change cycles which are known to be unproductive to `NoSolution` instead, but that's not necessary for stabilization: https://github.com/rust-lang/rust/pull/163159.
-
-### Allows more code to compile
-
-TODO: 
 
 ### Breaking change
 
@@ -67,6 +63,26 @@ When proving goals via item bounds, this may hide cycles which we then never det
 
 ### Rerunning canonical goals until reaching a fixpoint
 
-This causes some minor breakage
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/209
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/118
+Due to canonicalization, we detect cycles even if the relevant inference variables are different. Consider the following example
+```rust
+trait Foo {} // assume `Foo` is coinductive here
+struct Wrapper<T>(T);
+
+impl<T> Foo for Wrapper<Wrapper<T>>
+where
+    Wrapper<T>: Foo
+{} 
+```
+Proving `Wrapper<?a>: Foo` instantiates `a` with `Wrapper<?b>` and then proves `Wrapper<?b>: Foo`. Due to canonicalization these two goals are the same. If `Foo` is a coinductive trait, then we return `Yes` from the cycle. However, this must not simply succeed, but must overflow instead.
+
+The way this works is that initially when proving a goal, the `provisional_result` for a cycle depends on the `PathKind`: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1317-L1324). Once we finished proving a cycle head, we then check whether all provisional results used for this goal are equal to its result. If this is not the case, we set the `provisional_result` to the result of this iteration and try again until reaching a fixpoint: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1362-L1459).
+
+Doing it this way instead of only detecting cycles if the goals are exactly equal results in minor breakage for goals which result in placeholder constraints: https://github.com/rust-lang/trait-system-refactor-initiative/issues/209. This will get fixed long-term by the region constraints rework https://github.com/rust-lang/goals/issues/621.
+
+#### Avoiding exponential blowup
+
+Rerunning cycle heads can result in exponential blowup for more involved cycles. This was a very large issue [while we tried to do proper `ParamEnv` normalization](./aliases-and-type-relations.md#paramenv-normalization-jank). As this is something we're not doing as part of this stabilization, these performance optimizations are still necessary, but significantly less so. 
+
+We track [`HeadUsages`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L160-L179) and if a candidates ends up not impacting the result of a goal, we don't care whether this candidate depends on an outdated provisional result. We [drop irrelevant usages](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/trait_goals.rs#L1618-L1643), and [then avoid rerunning because of it](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1377-L1397).
+
+We also never rerun if a goal is ambiguous with no constraints. We just return ambiguity in this case as an ambiguous provisional result really should not change the final result to not be ambiguous in the next iteration: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1399-L1415).

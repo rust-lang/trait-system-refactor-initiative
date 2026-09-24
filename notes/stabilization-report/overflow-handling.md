@@ -1,8 +1,10 @@
-# Recursion depth handling
+# Overflow handling
+
+Encountering the recursion-limit is no longer fatal with the new trait solver. For this to not result in exponential blowup and hangs, we've added some heuristics and hacks. This is something we can and should continue to improve post-stabilization. There are other limits in the type system which still result in fatal errors. 
 
 ## Non-fatal overflow
 
-Encountering the recursion-limit is no longer fatal with the new trait solver. This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
+This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
 
 As crates can successfully compile even if they hit the recursion limit, increasing the limit can worsen their compile-time performance. This affects `typenum` whose performance gets 2x worse when doubling the recursion depth.
 
@@ -28,14 +30,6 @@ Another source of exponential blowup is overflow where there are multiple candid
 
 This is necessary for `typenum`, see https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_type_ir/src/search_graph/mod.rs#L288-L319. However, it can unfortunately also result in breakage, even if there's currently no known affected project https://github.com/rust-lang/trait-system-refactor-initiative/issues/276.
 
-### Long term plan
-
-My long term goal is to remove the reliance on non-fatal overflow again. Ideally we'd have some way to detect diverging paths in the trait solver and abort them because of that.
-
-This is hard to do soundly if we have a global cache as it very easily makes goals depend on the current stack. We must also avoid breaking code which would otherwise compile.
-
-The current setup works well enough, even if it is very much not ideal. I opened https://github.com/rust-lang/trait-system-refactor-initiative/issues/278 to track this.
-
 ## Properly tracking the required `recursion_depth`
 
 The old solver does not store the required depth for a goal in its cache. There are a bunch of crates which rely on that.
@@ -43,3 +37,20 @@ The old solver does not store the required depth for a goal in its cache. There 
 To avoid breakage, we're now rerunning overflowing goals with twice the available depth and emit a FCW if that succeeds, see https://github.com/rust-lang/rust/issues/159228.
 
 To reduce the impact of tracking the recursion depth correctly, we're also not increasing the required depth when proving auto traits for opaque types and coroutine witnesses https://github.com/rust-lang/rust/issues/159228.
+
+## Other uses of arbitrary limits in the type system
+
+While reaching the recursion limit inside of the trait solver is no longer fatal, there are other places which could overflow and therefore have an arbitrary limit. These are all a lot less important, but let's quickly go through them.
+
+https://github.com/rust-lang/trait-system-refactor-initiative/issues/118
+
+
+## Long term plan
+
+My long term goal is to remove the reliance on non-fatal overflow again. Ideally we'd have some way to detect diverging paths in the trait solver and abort them because of that.
+
+This is hard to do soundly if we have a global cache as it very easily makes goals depend on the current stack. We must also avoid breaking code which would otherwise compile.
+
+The current setup works well enough, even if it is very much not ideal. I opened https://github.com/rust-lang/trait-system-refactor-initiative/issues/278 to track this.
+
+
