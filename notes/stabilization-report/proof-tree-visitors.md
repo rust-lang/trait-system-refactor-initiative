@@ -2,7 +2,11 @@
 
 They exist because `FulfillmentCtxt` no longer contains nested obligations. In the old solver we used `evaluate` to `select` a single candidate and then added the nested goals for that candidate to the `FulfillmentCtxt` and proved them later. The new solver does not have a split between proving goals in `fulfill` and `evaluate` so proving a goal in the `FulfillmentCtxt` directly proves all nested goals insteead of returning them.
 
-There are still some parts of the type system which care about the nested obligations for a given root goal. For this we use [`ProofTreeVisitors`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/inspect/analyse.rs#L377). This is an overview of interesting `ProofTreeVisitors` and why they exist.
+There are still some parts of the type system which care about the nested obligations for a given root goal. For this we use [`ProofTreeVisitors`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/inspect/analyse.rs#L377).
+
+Proof tree visitors are implemented via [an alternative entry-point](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1918) to the trait solver. This then tracks the information necessary to act as if proving a goal was simply a list of candidates with an individual a set of nested obligations. The current implementation here is not great and I would like to spend some time to clean this up after stabilization. It does work well enough for now and changing it later shouldn't cause issues.
+
+This is an overview of interesting `ProofTreeVisitors` and why they exist.
 
 ## [`fn obligations_for_self_ty`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L108) and [`fn pending_obligations_potentially_referencing_float_infer`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L190)
 
