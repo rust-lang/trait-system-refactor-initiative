@@ -89,4 +89,10 @@ We also never rerun if a goal is ambiguous with no constraints. We just return a
 
 ## Caching
 
-TODO oh my god
+The old solver has a lot of different caches at different levels, see [this potentially outdated list from when I started working on the new solver](https://hackmd.io/1OmN5Oj4SL-PzAYsJyktwA#the-current-solver). This is a mess and a bunch of these caches are subtly unsound, especially wrt incremental compilation.
+
+Caching in the new trait solver is incredibly subtle, so I split the [`SearchGraph`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1-L13) out into a separate component, with a fuzzer to help with its correctness: https://github.com/lcnr/search_graph_fuzz.
+
+The new solver has [a single global cache](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_middle/src/ty/context.rs#L681-L682). This cache is used for all goals, so normalization does not use a separate cache. The global cache must not be obserable as that would be unsound wrt incremental.
+
+This means the global cache keeps track of the required recursion limit: TODO
