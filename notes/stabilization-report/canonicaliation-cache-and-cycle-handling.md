@@ -39,30 +39,17 @@ Caching that `<?x as Trait>::Assoc` normalizes to a specific `?fresh_var` slight
 
 The new solver also has some local caches, e.g. [in generalization](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/relate/generalize.rs#L356). This means that we do sometimes normalize ambiguous aliases to the same inference variables.
 
-
-
 ## Cycle handling
 
 The next-generation trait solver handles cycles differently than the old solver. This change is necessary due to https://github.com/rust-lang/trait-system-refactor-initiative/issues/10. The old trait solver did not track cycle participants sufficiently. This change more closely matches my current intuition of what cycles are and how to deal with them. However, we're still far from fully figuring this out and there are some open questions we're going to ignore as part of this stabilization.
 
 A cycle is now considered coinductive if at least one step is productive. In the old cycles were only coinductive if all goals involved in the cycle were coinductive. Importantly, whether a cycle is coinductive does not depend on the goals in the cycle, but the steps between goals; the reason why were proving nested goals: [source](https://github.com/rust-lang/rust/blob/28b5293debd90e0ad9b8ccb937c03e499cfc2170/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L430-L469).
 
-We now not only have coinductive and inductive cycles, but also ambiguous cycles. This is necessary because we need to tr[source](https://github.com/rust-lang/rust/blob/28b5293debd90e0ad9b8ccb937c03e499cfc2170/compiler/rustc_type_ir/src/search_graph/mod.rs#L115-L158).
-- explicitly 3 different cycle kinds, why NoSolution, why ambig, why yes
-
-https://github.com/rust-lang/rust/issues/150508
+If a cycle is coinductive, its initial provisional value is `Certainty::Yes` with no constraints, otherwise we return overflow. In the medium term, we'll likely change cycles which are known to be unproductive to `NoSolution` instead, but that's not necessary for stabilization: https://github.com/rust-lang/rust/pull/163159.
 
 ### Allows more code to compile
 
-https://github.com/rust-lang/trait-system-refactor-initiative/issues/114#issuecomment-3073743088
-
-```rust
-trait Trait {
-    type Assoc;
-}
-
-fn foo<T: Trait<Assoc = <T as Trait>::Assoc>>(_: T::Assoc) {}
-```
+TODO: 
 
 ### Breaking change
 
