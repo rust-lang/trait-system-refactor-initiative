@@ -61,9 +61,7 @@ The new solver nearly perfectly matches the old solver now. However, evaluate in
 
 ## rustdoc auto-trait impl generation
 
-The way we compute the auto-trait implementations for rustdoc depends on old solver internals.
-
-For now we've implemented a far simpler and weaker alternative 
+The way we compute the auto-trait implementations for rustdoc depends on old solver internals. For now we've implemented a far simpler and weaker alternative 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L187. This alternative is very limited however, see https://github.com/rust-lang/rust/issues/162274. We should improve this as we move forward.
 
 ## Minor changes to type inference
@@ -87,15 +85,3 @@ We can't actually require `T: Trait` to hold for rigid `<T as Trait>::Assoc` ali
 We also have to be careful to avoid query cycles. This means we won't even attempt to use impls for normalziation if they are shadowed by a where-clause as fetching `type_of` the associated item can cause query cycles, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/173.
 
 Similarly, we have to first attempt to prove all nested where-clauses of an impl before fetching its associated items, as not doing so also results in query cycles when calling `type_of`, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/185.
-
----
-
-This FCP is about the stabilization as a whole. It relies on the a list of self-contained FCPs and changes.
-
-Given these changes this FCP exists to evaluate the following:
-- 
-
-
-## References
-
-https://hackmd.io/7VnJO-qnSleVaMYZKyOGkA
