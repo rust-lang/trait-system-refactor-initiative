@@ -46,9 +46,7 @@ Used by coherence to improve error messages in case of overlap. Emitting good er
 
 ## [`select`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/select.rs#L38)
 
-We originally didn't really want to have the concept of selecting an impl to exist in the trait solver as that did not fit well with our more logical perspective on what trait solving means.
-
-We've somewhat gone back from that again, see [candidate assembly](./candidate-assembly.md) document.
+We originally didn't really want to have the concept of selecting an impl to exist in the trait solver as that did not fit well with our more logical perspective on what trait solving means. We've somewhat gone back from that again, see the notes on [candidate preference](./meta.md#candidate-preference-and-winnowing).
 
 There are some subtle difference between `select` with the new solver, old solver `select`, and the behavior of the trait solver. The new solver select never returns a candidate in case of ambiguity, as that's not necessary given the way its used.
 

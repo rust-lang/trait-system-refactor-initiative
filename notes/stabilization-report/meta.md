@@ -57,6 +57,16 @@ I think long-term we might be able to change the trait solver to not depend on w
 
 TODO: link to the code which actually requires certainty to be the same. this is blocking!
 
+## Candidate preference and winnowing
+
+We now merge where-clauses by checking the constraits in their query response instead of a syntactic check. TODO: does this result in behavior differences. TODO: YES no constraints + MAYBE sus https://rust-lang.zulipchat.com/#narrow/channel/144729-t-types/topic/resolving.20equal.20regions/near/623504310. The candidate preference rules are nearly the same between the two solvers since https://github.com/rust-lang/rust/pull/132325, with some minor differences.
+
+The old solver simply chooses the alias-bound and trait object candidate with a lower index: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1919-L1936). The new solver instead tries to merge the candidates. This is theoretically breaking until we get full support for OR-constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/27.
+
+The new solver only prefers builtin trait object impls if they do not guide type inference: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_next_trait_solver/src/solve/trait_goals.rs#L1524-L1536). We do prefer the builtin trait object impls even if they have region constraints however, tis is necessary to avoid significant breakage due to https://github.com/rust-lang/rust/issues/57893. See https://github.com/rust-lang/trait-system-refactor-initiative/issues/183.
+
+There are also a few minor difference for `Projection` goals. The old solver prefers builtin trait object candidates over user-written impls while the new solver does not, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/101. This is a breaking change, but the affected code is very much unsound: https://github.com/rust-lang/trait-system-refactor-initiative/issues/253.
+
 ## The leak check and `VisibleForLeakCheck`
 
 The behavior wrt higher-ranked region errors in the trait solver is mostly the same between the new and old solver. In the old solver we don't consider constraints from nested goals as [trait goals are evaluated in a `probe`](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1276-L1292) and [outlives obligations get entirely ignored](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L747-L765) in evaluation.
