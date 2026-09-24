@@ -30,6 +30,27 @@ The new solver is far from perfect. We're partially just maintaining the status 
 - borrowck being per body instead of per typeck root
 - `ParamEnv` normalization is still shit
 
+## MIR borrowck and dependence on region identity
+
+MIR borrowck is intended to only reprove things already proven by HIR typeck. Because of this, we ICE if MIR borrowck fails to prove something. MIR borrowck starts out by replacing all free regions in the body with unique region variables. This means that while HIR typeck may prove `T: Trait<'a, 'a>`, MIR borrow instead proves `T: Trait<'a, 'b>`.
+
+Unfortunately, there are a bunch of subtle ways in which the trait solver relies on regions being identical. These include:
+- [accessing the `opaque_type_storage`](./opaque-types.md), which is a structural lookup in the current implementation
+- [merging multiple applicable where-clause, alias-bound, or builtin candidates](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/mod.rs#L314-L320)
+- potentially [trait solver cycle fixpoint behavior](./canonicaliation-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint)
+
+There are also fast paths for structurally identical types, e.g. [in type relations](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/relate/solver_relating.rs#L148-L150).
+
+This means that MIR typeck may actually fail to prove something proven in HIR typeck due to *region uniquification*. This has resulted in a bunch of ICE, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/30.
+
+The way we handled this has changed a lot as we've encountered issues or changed the design of the trait solver, see https://github.com/rust-lang/rust/pull/145706 for the latest way we're dealing with this. This is somewhat hacky.
+
+The old solver is less region dependent than the new one. It does not merge candidates, instead arbitrarily prefering earlier alias-bound and builtin trait object candidates: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1919-L1935). The way opaque types are handled does result in ICE here, but that is less due to region dependence and instead because it fully recomputes the hidden types of opaque types instead of using the type inferred by HIR typeck.
+
+I think long-term we might be able to change the trait solver to not depend on whether regions are equal after all. Representing opaque types via higher-kinded inference variables causes their lookup to no longer require structural identity. Merging multiple candidates does not rely on region identity if we support OR-constraints. We want to do that regardless for marker traits. We've explicitly made sure that merging candidates is future compatible with this approach.
+
+TODO: link to the code which actually requires certainty to be the same. this is blocking!
+
 ## rustdoc auto-trait impl generation
 
 The way we compute the auto-trait implementations for rustdoc depends on old solver internals.
