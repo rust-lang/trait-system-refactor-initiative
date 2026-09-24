@@ -51,6 +51,20 @@ I think long-term we might be able to change the trait solver to not depend on w
 
 TODO: link to the code which actually requires certainty to be the same. this is blocking!
 
+## The leak check and `VisibleForLeakCheck`
+
+The behavior wrt higher-ranked region errors in the trait solver is mostly the same between the new and old solver. In the old solver we don't consider constraints from nested goals as [trait goals are evaluated in a `probe`](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1276-L1292) and [outlives obligations get entirely ignored](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L747-L765) in evaluation.
+
+As the new solver does not have different implementations for fulfill and evaluate, it always returns the region constraints of nested goals. This is unfortunately unsound due to a lack of assumptions on binders, and we therefore changed the trait solver to explicitly ignore region constraints from nested goals via a `VisibleForLeakCheck` marker https://github.com/rust-lang/rust/pull/155749.
+
+The new solver nearly perfectly matches the old solver now. However, evaluate in the old solver does apply constraints from nested `Projection` obligations, as they can constrain otherwise unconstrained inference variables. This also allows `Projection` goals to otherwise influence its parent obligation by returning constraints from matching the impl header. This is one case where the the implementation of the new solver will actually weaken the leak check. I don't think anyone relied on this. See the test added in https://github.com/rust-lang/rust/pull/163271.
+
+
+Behavior between the two solvers is the same since https://github.com/rust-lang/rust/pull/146725, not quite https://rust-lang.zulipchat.com/#narrow/channel/364551-t-types.2Ftrait-system-refactor/topic/HRTB.20oddity/with/623184908
+
+
+
+
 ## rustdoc auto-trait impl generation
 
 The way we compute the auto-trait implementations for rustdoc depends on old solver internals.
