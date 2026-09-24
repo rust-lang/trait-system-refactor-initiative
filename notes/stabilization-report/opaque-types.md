@@ -129,7 +129,11 @@ https://github.com/rust-lang/trait-system-refactor-initiative/issues/181
 
 ### Other places treating opaque types as rigid
 
-### Handling unconstrained associated types of opaques 
+### Handling unconstrained associated types of opaques
+
+### Preventing auto-trait leakage from leaking types
+
+With https://github.com/rust-lang/rust/pull/159589 the new solver no longer allows auto-trait leakage to leak types from other functions. This fixes https://github.com/rust-lang/rust/issues/134578.
 
 ## MIR borrowck
 
