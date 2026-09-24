@@ -86,3 +86,7 @@ Rerunning cycle heads can result in exponential blowup for more involved cycles.
 We track [`HeadUsages`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L160-L179) and if a candidates ends up not impacting the result of a goal, we don't care whether this candidate depends on an outdated provisional result. We [drop irrelevant usages](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/trait_goals.rs#L1618-L1643), and [then avoid rerunning because of it](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1377-L1397).
 
 We also never rerun if a goal is ambiguous with no constraints. We just return ambiguity in this case as an ambiguous provisional result really should not change the final result to not be ambiguous in the next iteration: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1399-L1415).
+
+## Caching
+
+TODO oh my god
