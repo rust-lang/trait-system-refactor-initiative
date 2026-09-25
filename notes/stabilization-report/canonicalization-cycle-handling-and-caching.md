@@ -69,7 +69,7 @@ Proving `Wrapper<?a>: Foo` instantiates `a` with `Wrapper<?b>` and then proves `
 
 The way this works is that initially when proving a goal, the `provisional_result` for a cycle depends on the `PathKind`: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1317-L1324). Once we finished proving a cycle head, we then check whether all provisional results used for this goal are equal to its result. If this is not the case, we set the `provisional_result` to the result of this iteration and try again until reaching a fixpoint: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1362-L1459).
 
-Doing it this way instead of only detecting cycles if the goals are exactly equal results in minor breakage for goals which result in placeholder constraints: https://github.com/rust-lang/trait-system-refactor-initiative/issues/209. This will get fixed long-term by the region constraints rework https://github.com/rust-lang/goals/issues/621.
+Doing it this way instead of only detecting cycles if the goals are exactly equal results in minor breakage for goals which result in placeholder constraints: https://github.com/rust-lang/trait-system-refactor-initiative/issues/209. This will get fixed long-term by the region constraints rework https://github.com/rust-lang/goals/issues/621. There's a similar issue when using opaque types mentioning placeholders in a cycle: https://github.com/rust-lang/trait-system-refactor-initiative/issues/242.
 
 #### Avoiding exponential blowup
 
