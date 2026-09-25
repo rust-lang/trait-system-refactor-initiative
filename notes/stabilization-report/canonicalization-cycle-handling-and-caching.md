@@ -95,7 +95,6 @@ An ABA cycle can have different results from a BAB cycle, where `A` and `B` are 
 
 There's a lot of nuance to the way the provisional cache works. The most involved part is likely [`rebase_provisional_cache_entries`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L997). I don't think going in-depth in this stabilization report is worth it.
 
-
 ### `InferCtxt`-local caches strengthen inference
 
 The old solver has caches local to the current `InferCtxt`. For ambiguous normalization, this cache stores the returned unconstrained inference variable: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/mod.rs#L103).
