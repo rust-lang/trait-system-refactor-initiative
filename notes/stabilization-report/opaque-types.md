@@ -8,6 +8,7 @@ The new solver includes a near complete rewrite of the way we handle opaque type
 The reason we needed to change opaque type handling is that we wanted to change their normalization and the other changes are fallout from that. Not always normalizing opaque types results in a bunch of weird bugs and edge cases, e.g.
 - https://github.com/rust-lang/rust/issues/155151
 - https://github.com/rust-lang/rust/issues/119786
+- most UI tests with `//@[next] check-pass` are due to opaque types
 
 ## High level mental model
 
