@@ -17,7 +17,7 @@ We still use the old style canonicalization in some places, especially if the co
 
 ### Erasing universe information in query inputs
 
-All inputs get put into the root universe. The trait solver does not care about universes it cannot access and this improves caching. It does mean in https://github.com/rust-lang/rust/issues/161404 we don't trigger https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_infer/src/infer/relate/generalize.rs#L425.
+All inputs get put into the root universe. The trait solver does not care about universes it cannot access and this improves caching. It does mean in https://github.com/rust-lang/rust/issues/161404 we don't trigger [an internal warning](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_infer/src/infer/relate/generalize.rs#L425).
 
 Old canonicalization already does this for type and const inference variables for performance reasons: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/canonical/canonicalizer.rs#L355-L358).
 
