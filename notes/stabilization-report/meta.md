@@ -57,7 +57,7 @@ I think long-term we might be able to change the trait solver to not depend on w
 
 TODO: link to the code which actually requires certainty to be the same. this is blocking!
 
-## Candidate preference and winnowing
+## Candidate assembly and preference
 
 We now merge where-clauses by checking the constraits in their query response instead of a syntactic check. TODO: does this result in behavior differences. TODO: YES no constraints + MAYBE sus https://rust-lang.zulipchat.com/#narrow/channel/144729-t-types/topic/resolving.20equal.20regions/near/623504310. The candidate preference rules are nearly the same between the two solvers since https://github.com/rust-lang/rust/pull/132325, with some minor differences.
 
@@ -67,6 +67,8 @@ The new solver only prefers builtin trait object impls if they do not guide type
 
 There are also a few minor difference for `Projection` goals. The old solver prefers builtin trait object candidates over user-written impls while the new solver does not, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/101. This is a breaking change, but the affected code is very much unsound: https://github.com/rust-lang/trait-system-refactor-initiative/issues/253.
 
+As a performance optimization we also don't assemble impl candidates if there's a where-clause which holds without any constraints: [source](https://github.com/rust-lang/rust/blob/4e701dc6ba63a40c908a173df269a55e1fd6297e/compiler/rustc_next_trait_solver/src/solve/assembly/mod.rs#L521-L547). This should not impact behavior but has a visible performance impact. This was necessary to compile `rayon` before we reverted our changes to [`ParamEnv` normalization](./aliases-and-type-relations.md#paramenv-normalization-jank). See https://github.com/rust-lang/trait-system-refactor-initiative/issues/226.
+
 ## The leak check and `VisibleForLeakCheck`
 
 The behavior wrt higher-ranked region errors in the trait solver is mostly the same between the new and old solver. In the old solver we don't consider constraints from nested goals as [trait goals are evaluated in a `probe`](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1276-L1292) and [outlives obligations get entirely ignored](https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/compiler/rustc_trait_selection/src/traits/select/mod.rs#L747-L765) in evaluation.
@@ -75,14 +77,22 @@ As the new solver does not have different implementations for fulfill and evalua
 
 The new solver nearly perfectly matches the old solver now. However, evaluate in the old solver does apply constraints from nested `Projection` obligations, as they can constrain otherwise unconstrained inference variables. This also allows `Projection` goals to otherwise influence its parent obligation by returning constraints from matching the impl header. This is one case where the the implementation of the new solver will actually weaken the leak check. I don't think anyone relied on this. See the test added in https://github.com/rust-lang/rust/pull/163271.
 
+## A new `FulfillmentCtxt`
+
+The new solver uses a new context to track pending obligations: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_trait_selection/src/solve/fulfill.rs#L44).
+
+This context is simpler than the old implementation as it only handles root obligations. This means it does not need cycle detection. The fulfillment loop is still incredibly hot however. There are a lot of places which call [`fn try_evaluate_obligations`](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_trait_selection/src/solve/fulfill.rs#L165) to make inference progress.
+
+Similar to fulfillment, the trait solver itself now also loops over pending nested goals until reaching a fixpoint. This is less hot than fulfillment itself and implemented separately: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L947).
+
+We have optimized fulfillment quite a bit. Similar to the old solver, we track the inference state - inference variables and opaque type storage - on which an ambiguous goal is stalled on and only canonicalize and reevaluate if any of them changed: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_trait_selection/src/solve/fulfill.rs#L173-L179). We've also done a bunch of micro-optimizations, improving type sizes and so on.
+
 ## rustdoc auto-trait impl generation
 
 The way we compute the auto-trait implementations for rustdoc depends on old solver internals. For now we've implemented a far simpler and weaker alternative 
 https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/auto_trait.rs#L187. This alternative is very limited however, see https://github.com/rust-lang/rust/issues/162274. We should improve this as we move forward.
 
-## Minor changes to type inference
-
-### Eagerly evaluating nested goals
+## Eagerly evaluating nested goals
 
 We removed the split between evaluation and fulfillment. This impacts type inference in two minor ways.
 - selection now runs nested goals until reaching a fixpoint, slightly strengthening inference https://github.com/rust-lang/trait-system-refactor-initiative/issues/102

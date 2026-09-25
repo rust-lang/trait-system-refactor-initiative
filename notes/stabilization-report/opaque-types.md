@@ -1,9 +1,9 @@
 # Next-generation trait solver opaque type handling
 
 The new solver includes a near complete rewrite of the way we handle opaque types:
-- we always normalize opaque types to their hidden type in the defining scope.
-- we introduce the concept of *non-defining* - but revealing - uses in the defining scope.
-- to support recursive function calls, we have a few type inference hacks for *not-yet defined* opaques in their defining scope.
+- we always normalize opaque types to their hidden type in the defining scope
+- we introduce the concept of *non-defining* - but revealing - uses in the defining scope
+- to support recursive function calls, we have a few type inference hacks for *not-yet defined* opaques in their defining scope
 
 TOOD: make it more explicit why the changes happen
 
@@ -32,9 +32,9 @@ Looking up an opaque type in the `opaque_type_storage` is currently a structural
 
 TODO: will this make our long term goal worse? :<
 
-## `TypingMode`
+## Tracking the current stage via `TypingMode`
 
-The behavior of the trait solver differs depending on the current `TypingMode`, which explicitly represents the different stages during compilation. Handling opaque types now relies on 2 additional `TypingMode`.
+The behavior of the trait solver differs depending on the current `TypingMode`, which explicitly represents the different stages during compilation. While these modes also impact other parts of the type system, notably specialization, their main use is opaque types. The new approach to opaque type handling splits analysis into two additional stages.
 
 Opaque types are handled as follows, depending on the stage we're in:
 - during `TypingMode::Coherence` normalizing opaque types is always ambiguous [source](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_next_trait_solver/src/solve/project_goals/opaque_types.rs#L28-L42)
@@ -44,6 +44,12 @@ Opaque types are handled as follows, depending on the stage we're in:
 - after analysis we normalize all opaque types by simply using `type_of` to get their underlying type
 
 This allows us to remove a bunch of hacky handling in functions which are conceptually in the defining scope and which happen after HIR typeck, e.g. [`fn check_opaque_meets_bounds`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_analysis/src/check/check.rs#L415-L416). and [`fn check_coroutine_obligations`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/at.rs#L145-L165).
+
+### `TypingMode::ErasedNonCoherence`
+
+We also added yet another `TypingMode` which is purely used as a performance optimization. We want to share the trait solver cache between the different compilation stages if evaluating a goal doesn't actually depend on the current `TypingMode`. Doing so significantly improves the compile times for crates like `wg-grammar`. See https://github.com/rust-lang/rust/pull/155443.
+
+The core idea is that instead of proving a goal in the current `TypingMode`, we may first run it with `TypingMode::ErasedNotCoherence`. We then track whether we did anything that relies on the current `TypingMode` and if so, we rerun this goal while providing the actual `TypingMode` this time. We never use `TypingMode::ErasedNonCoherence` outside of the trait solver.
 
 ## Non-defining uses in the defining scope
 
