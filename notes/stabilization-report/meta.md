@@ -108,7 +108,7 @@ These are not changes from the old solver, but instead interesting observations 
 
 Minor changes to incompleteness or type inference in general can result in *runtime behavior changes*, most notably by incompletely rejecting some candidates during method selection, e.g. hgttps://github.com/rust-lang/trait-system-refactor-initiative/issues/298.
 
-We can't actually require `T: Trait` to hold for rigid `<T as Trait>::Assoc` alias due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177. Proving `T: Trait` has stronger requirements than normalizing associated types.
+We can't actually require `T: Trait` to hold for a rigid `<T as Trait>::Assoc` due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177. Proving `T: Trait` has stronger requirements than normalizing associated types.
 
 We also have to be careful to avoid query cycles. This means we won't even attempt to use impls for normalziation if they are shadowed by a where-clause as fetching `type_of` the associated item can cause query cycles, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/173.
 
