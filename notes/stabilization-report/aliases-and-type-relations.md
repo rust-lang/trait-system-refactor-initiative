@@ -46,7 +46,7 @@ Because we now always normalize non-rigid aliases before relating them, even if 
 
 ### `fast_reject`
 
-Having an explicit `IsRigid` marker also means that `fast_reject` structurally relates rigid aliases: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/fast_reject.rs#L353-L365).
+Having an explicit `IsRigid` marker also allows `fast_reject` to structurally relates rigid aliases, which slightly improves compile time performance: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/fast_reject.rs#L353-L365).
 
 ## `ParamEnv` normalization jank
 
@@ -58,13 +58,11 @@ The old trait solver does not support on-demand normalization and instead normal
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/246
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/265
 
-We keep the behavior of the old solver but implement it differently. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle, but its behavior should effectively match the old trait solver. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
+While the implementation differs, the behavior is now the same as with the old solver. We explicitly mark aliases in the unnormalized `ParamEnv` used for normalization as rigid. The exact way this works is quite subtle. This has been implemented in https://github.com/rust-lang/rust/pull/158643.
 
-The actual behavior on stable here is quite subtle. We do not mark constants as rigid as the old solver eagerly normalizes all constants in an empty environment: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/mod.rs#L439-L525). This matches the existing stable behavior, but matters for currently unstable const generics features. That's tracked in https://github.com/rust-lang/project-const-generics/issues/118.
+The actual behavior on stable here is quite subtle. We do not mark constants as rigid as the old solver eagerly normalizes all constants in an empty environment: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/mod.rs#L439-L525). By keeping constants as non-rigid, the impl with the new solver is a bit simpler: [source](https://github.com/rust-lang/rust/blob/f45772eb69d6ed3cc23be40625411a75f9f32c9d/compiler/rustc_trait_selection/src/traits/mod.rs#L457-L492). This matters for currently unstable const generics features and is tracked in https://github.com/rust-lang/project-const-generics/issues/118. 
 
-We also do not mark the normalized-to term of `Projection` clauses as rigid, as the old solver does treat the [output of `project`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/project.rs#L645) as unnormalized.
-
-The old solver had to eagerly normalize constants during `ParamEnv` normalization. By keeping them as non-rigid, this is now unnecessary with the new solver: [source](https://github.com/rust-lang/rust/blob/f45772eb69d6ed3cc23be40625411a75f9f32c9d/compiler/rustc_trait_selection/src/traits/mod.rs#L457-L492).
+We also do not mark the normalized-to term of `Projection` clauses as rigid, as the old solver explicitly normalizes the [output of `project`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/project.rs#L645).
 
 ## Renormalize during writeback
 

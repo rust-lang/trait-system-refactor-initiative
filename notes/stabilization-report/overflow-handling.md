@@ -6,7 +6,7 @@ Encountering the recursion-limit is no longer fatal with the new trait solver. F
 
 This allows us to remove some hacks, e.g. in [`ProbeContext::consider_probe`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/method/probe.rs#L2127-L2147) or [when checking goals for diagnostics](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/error_reporting/traits/ambiguity.rs#L88-L94). It also causes a bunch of problems.
 
-As crates can successfully compile even if they hit the recursion limit, increasing the limit can worsen their compile-time performance. This affects `typenum` whose performance gets 2x worse when doubling the recursion depth.
+As crates can successfully compile even if they hit the recursion limit, increasing the limit can worsen their compile time performance. This affects `typenum` whose performance gets 2x worse when doubling the recursion depth.
 
 This is partialy necessary due to the removal of [`fn match_fresh_trait_preds`](https://github.com/rust-lang/rust/blob/aea4dd4b0377fb5881542815dc3c2352394e8514/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1213-L1226) https://github.com/rust-lang/trait-system-refactor-initiative/issues/56. We've removed this as it made the global cache observable, which is incorrect wrt incremental compilation.
 
