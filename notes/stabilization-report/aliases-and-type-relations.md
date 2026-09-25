@@ -66,6 +66,8 @@ We also do not mark the normalized-to term of `Projection` clauses as rigid, as 
 
 ## Renormalize during writeback
 
+This is likely not actually strictly necessary with the new solver and something we could have implemented with the old one as well. Due to explicitly marking aliases as rigid, this is more performant with the new solver however.
+
 At the end of HIR typeck, writeback now explicitly normalizes all non-rigid aliases. This fixes a bunch of bugs around unnormalized aliases in the MIR body or during MIR building. It also allows us to remove a bunch of redundant normalization calls e.g. in [`TypeChecker::ascribe_user_type_skip_wf`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/canonical.rs#L291), [`TypeChecker::equate_normalized_input_or_output`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/input_output.rs#L235-L247),[`TypeChecker::relate_type_and_user_type`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_borrowck/src/type_check/mod.rs#L493-L504)
 
 ## Deep normalization implementation
@@ -75,3 +77,26 @@ We replaced both [`normalize`](https://github.com/rust-lang/rust/blob/7022271280
 We treat all aliases the same way: normalizing them by emitting a `Projection` goal. This matches the old solver's handling of associated types, but this now also applies to all other alias kinds: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/normalize.rs#L135). This means the normalization folder no longer needs to keep track of the recursion depth itself as the folder itself is guaranteed to not diverge, even as proving any single `Projection` goal may overflow.
 
 The normalization folder also handles ambiguous normalization of aliases with escaping bound vars slightly differently. The old implementation can leak placeholders by constraining inference variables via ambiguous nested obligations later on. While theoretically observable, there is no known instance of this actually mattering: [old](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_trait_selection/src/traits/normalize.rs#L222-L233) [new](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/normalize.rs#L55-L70). In general, bugs related to universe handling and type inference are rarely obserable, as the main region checking happens in MIR borrowck instead of during type inference itself.
+
+## Historical notes
+
+We went through a few implementation strategy for normalization. Here's a quick overview and some links.
+
+We initially tried to exclusively rely on on-demand normalization as "lazy normalization". We never tried to entirely avoid eagerly normalization, as e.g. changing lints and MIR borrowck to normalize on-demand would have been quite involved, so we eagerly normalized in writeback early-on.
+
+We entirely gave up on not eagerly normalizing, e.g. during HIR typeck, due to performance concerns and the fact a bunch of places actually do rely on us eagerly normalizing, e.g. for caching or the occurs check: https://github.com/rust-lang/rust/pull/155767.
+
+The way we normalize has also changed over time. We initially had the concept of "one-step normalization", e.g. `<T as Trait>::Assoc` would first normalize to `<T as OtherTrait>::Assoc`, which can then be further normalized to `u32` or whatever. We originally considered alias-bound candidates for each normalizeable alias in this chain. That was unsound and also caused ICE during MIR borrowck:
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/6
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/77
+
+We also initially related aliases via `AliasRelate` goals. These goals had 3 candidates:
+- normalize lhs, equate with unnormalized rhs
+- normalize rhs, equate with unnormalized lhs
+- structurally relate aliases
+
+This is horrible idea. It has a very bad perf impact, fails with ambiguity due to subtle reasons and is generally quite unworkable.
+
+On-demand normalization without explicitly tracking whether an alias is rigid mean even will proper normalization, will still relied on `AliasRelate`, now implemented by fully normalizing both the lhs and rhs and then structurally relating them. We needed `AliasRelate` to make sure we only structurally relate rigid aliases and had no way of otherwise knowing whether aliases were rigid or not.
+
+This meant we renormalized aliases every time we related them, which is quite bad for perf. That's why we introduced rigid alias markers in the end.
