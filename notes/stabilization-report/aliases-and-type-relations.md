@@ -1,18 +1,18 @@
 # Next-generation trait solver: aliases and type relations
 
-The next-generation trait solver changes the way we handle aliases. This impacts both normalization and the way we relate types. Changes to the way we handle opaque types are discussed in [a separate document](https://github.com/rust-lang/trait-system-refactor-initiative/blob/main/notes/stabilization-report/opaque-types.md):
+The next-generation trait solver changes the way we handle aliases. This impacts both normalization and the way we relate types. Changes to the way we handle opaque types are discussed in [a separate document](https://github.com/rust-lang/trait-system-refactor-initiative/blob/main/notes/stabilization-report/opaque-types.md).
 - we now explicitly track whether an alias is rigid in its current scope
 - we normalize aliases on demand where necessary, e.g. in type relations
 
 ## Rigid alias marker
 
-The next-generation trait solver explicitly encodes the concept of whether an alias is rigid in the representation of types. See https://github.com/rust-lang/rust/pull/156742. We did not track this explicitly with the old trait solver. The underlying concept still existed just the same and has not changed, we simply did not encode it explicitly.
+The next-generation trait solver explicitly encodes the concept of whether an alias is rigid in the representation of types https://github.com/rust-lang/rust/pull/156742. We did not track this explicitly with the old trait solver. The underlying concept has existed just the same and has not changed, we simply did not encode it explicitly.
 
 An alias is always rigid wrt a given `TypingEnv`, i.e. the combination of the current `ParamEnv` and `TypingMode`. This means that moving a type between different `TypingEnv`s needs to change all contained aliases to be non-rigid again.
 
 Changing the `ParamEnv` mostly happens by instantiating an `EarlyBinder`. This requires us to mark aliases as non-rigid either when wrapping it with the `EarlyBinder` or when instantiating that binder. We currently do the first, with `EarlyBinder` never containing any rigid aliases. This is unnecessary when using `instantiate_identity` while staying in a compatible `TypingEnv`, e.g. [using types from HIR typeck during MIR building](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_mir_build/src/builder/mod.rs#L510-L516). We handle this by explicitly marking aliases as rigid here again.
 
-Handling changes to the `TypingMode` is a bit more fragile and requires us to be careful. This has caused some bugs in our refactoring, e.g. https://github.com/rust-lang/rust/pull/160125. Note that this is already an issue with the currently stable normalization approach as it also had the concept of an alias being rigid, we simply did not track it explicitly.
+Handling changes to the `TypingMode` is a bit more fragile and requires us to be careful. This has caused some bugs in our refactoring, e.g. https://github.com/rust-lang/rust/pull/160125. Note that this is already an issue with the currently stable normalization approach as it also had the implicit concept of an alias being rigid.
 
 There are very few places where we use different `ParamEnv`s in the same context. These also need to manually handle aliases. The main example here is [`fn check_type_bounds`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_hir_analysis/src/check/compare_impl_item.rs#L2544-L2560). This concrete code is broken in two ways, both of which don't matter enough for me to even bother with writing a test:
 - while we normalize the GAT in obligations, we don't normalize its occurances in the `ParamEnv`. Occurances of the GAT in where-clauses therefore remain rigid.
@@ -30,7 +30,7 @@ It also fixes a bunch of other minor issues when relating higher-ranked associat
 
 ## Type relations and generalization
 
-On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. We split type equality between the two solver with the new solver using [`SolverRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_type_ir/src/relate/solver_relating.rs#L43) and the old one uses [`TypeRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_infer/src/infer/relate/type_relating.rs#L15). When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/relate/solver_relating.rs#L197-L214). By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
+On-demand normalization is the largest conceptual change and has a bunch of other fallout on the way our type relations work. We reimplemented type equality for the new solver in [`SolverRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_type_ir/src/relate/solver_relating.rs#L43) while the still using [`TypeRelating`](https://github.com/rust-lang/rust/blob/919170b08cc014c8e85709dd80efeed2bac74562/compiler/rustc_infer/src/infer/relate/type_relating.rs#L15) with the old one. When encountering a non-rigid alias in a type relation, we replace it with an inference variable in the type relation itself before recursing: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_type_ir/src/relate/solver_relating.rs#L197-L214). By doing so, we're fixing most of the issues when relating higher-ranked aliases: https://github.com/rust-lang/trait-system-refactor-initiative/issues/9.
 
 ### Generalization
 
@@ -42,7 +42,7 @@ The way we handle higher-ranked aliases is still incomplete in some cases, even 
 
 Generalization still keeps non-rigid higher-ranked aliases around, which can be incomplete. See https://github.com/rust-lang/rust/issues/161404 for an example. Fixing this properly likely relies on higher-kinded inference variables. We could alternatively defer type relations when entering a binder to avoid this incompleteness.
 
-Because we now always normalize non-rigid aliases before relating them, we must be careful to not generalize inference variables inside of non-rigid higher-ranked aliases, as that can otherwise result in unavoidable ambiguity errors: [source](https://github.com/rust-lang/rust/blob/32e1cf827d2a7880bb40efbe35e6391d9ba6225d/compiler/rustc_infer/src/infer/relate/generalize.rs#L535-L555).
+Because we now always normalize non-rigid aliases before relating them, even if the alias was higher-ranked, we must be careful to not generalize inference variables inside of them. That can otherwise result in unavoidable ambiguity errors: [source](https://github.com/rust-lang/rust/blob/32e1cf827d2a7880bb40efbe35e6391d9ba6225d/compiler/rustc_infer/src/infer/relate/generalize.rs#L535-L555).
 
 ### `fast_reject`
 
