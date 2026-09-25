@@ -31,16 +31,6 @@ We instantiate any new existential variables in the currently highest universe. 
 Canonicalization has a cache to very quickly canonicalize the `param_env`
 https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/canonicalizer.rs#L149. This is necessary as it has a huge impact on the compilation time of some crates, see https://github.com/rust-lang/rust/pull/141451#issuecomment-2959946611.
 
-## `InferCtxt`-local caches strengthen inference
-
-The old solver has caches local to the current `InferCtxt`. For ambiguous normalization, this cache stores the returned unconstrained inference variable: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/mod.rs#L103).
-
-Caching that `<?x as Trait>::Assoc` normalizes to a specific `?fresh_var` slightly strenghtened inference. Not doing so is a minor breaking change:
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/215
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/275
-
-The new solver also has some local caches, e.g. [in generalization](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/relate/generalize.rs#L356). This means that we do sometimes normalize ambiguous aliases to the same inference variables.
-
 ## Cycle handling
 
 The next-generation trait solver handles cycles differently than the old solver. This change is necessary due to https://github.com/rust-lang/trait-system-refactor-initiative/issues/10. The old trait solver did not track cycle participants sufficiently. This change more closely matches my current intuition of what cycles are and how to deal with them. However, we're still far from fully figuring this out and there are some open questions we're going to ignore as part of this stabilization.
@@ -102,3 +92,14 @@ This means the global cache keeps track of the required recursion limit: https:/
 However, the global cache by itself in insufficient to avoid exponential blowup and hangs. To deal with this we also have [the `provisional_cache`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L612-L616) which is only used while inside of a trait solver cycle. This cache is allowed to be observable, which is fine, because we only move the cycle root to the global cache and the provisional cache entries for all other cycle participants just get dropped.
 
 There's a lot of nuance to the way the provisional cache works. The most involved part is likely [`rebase_provisional_cache_entries`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L997). I don't think going in-depth in this stabilization report is worth it.
+
+
+### `InferCtxt`-local caches strengthen inference
+
+The old solver has caches local to the current `InferCtxt`. For ambiguous normalization, this cache stores the returned unconstrained inference variable: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/mod.rs#L103).
+
+Caching that `<?x as Trait>::Assoc` normalizes to a specific `?fresh_var` slightly strenghtened inference. Not doing so is a minor breaking change:
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/215
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/275
+
+The new solver also has some local caches, e.g. [in generalization](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/relate/generalize.rs#L356). This means that we do sometimes normalize ambiguous aliases to the same inference variables.
