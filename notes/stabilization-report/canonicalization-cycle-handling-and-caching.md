@@ -41,7 +41,7 @@ If a cycle is coinductive, its initial provisional value is `Certainty::Yes` wit
 
 ### Breaking change
 
-In the old solver non-productive cycles are always ambiguous in `evaluate`. Tthe old solver only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection. https://github.com/rust-lang/trait-system-refactor-initiative/issues/224
+In the old solver non-productive cycles are always ambiguous in `evaluate`. It only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection. https://github.com/rust-lang/trait-system-refactor-initiative/issues/224
 
 ### Weird jank
 
