@@ -12,7 +12,7 @@ This is partialy necessary due to the removal of [`fn match_fresh_trait_preds`](
 
 Hitting overflow during `fulfill` is fatal, and so are overflow errors in `query_normalize`. This is mainly as there's very little use in allowing that, it matches the old solver, and supporting non-fatal overflow here is challenging.
 
-This means proving things slightly differently between HIR typeck and MIR borrowck can result in ICE. This is subtle and might end up being annoying to handle: https://github.com/rust-lang/trait-system-refactor-initiative/issues/238. Alternatively, we could change overflow during MIR borrowck to be fatal. This would not be breaking.
+Non-fatal overflow means proving things slightly differently between HIR typeck and MIR borrowck can result in ICE. This is subtle and might end up being annoying to handle: https://github.com/rust-lang/trait-system-refactor-initiative/issues/238. Alternatively, we could change overflow during MIR borrowck to be fatal. This would not be breaking.
 
 This also results in subtle new invariants of the type system. Whether we hit the overflow limit can differ between crates in the dependency graph, which could theoretically result in unsoudness: https://github.com/rust-lang/trait-system-refactor-initiative/issues/258
 - difference in layout or `fn codegen_select_candidate` depending on whether a goal overflows
