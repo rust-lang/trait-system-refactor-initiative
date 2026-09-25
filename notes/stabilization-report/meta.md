@@ -11,10 +11,10 @@ There are a lot of technical nuances and implementation choices here. Not all of
     - we support non-defining uses in the defining scope
     - we add the explicit concept of psuedo-rigid opaque types during HIR typeck
     - we split borrowck into two steps to support non-defining uses in nested bodies
-- a solver cycle is now coinductive if at least one step is productive, previously all steps had to be: [doc](./canonicalization-cache-and-cycle-handling.md#cycle-handling)
+- a solver cycle is now coinductive if at least one step is productive, previously all steps had to be: [doc](canonicalization-cycle-handling-and-caching.md)
 - reaching the overflow limit is now non-fatal: [doc](./recursion-depth-handling.md)
 - we removed the split between selection (evaluate) and fulfillment, use proof tree visitors to get information about nested goals: [doc](./proof-tree-visitors.md)
-- the trait solver canonicalizes at each step: [doc](./canonicalization-cache-and-cycle-handling.md)
+- the trait solver canonicalizes at each step: [doc](canonicalization-cycle-handling-and-caching.md)
 
 ## Performance impact
 
@@ -45,7 +45,7 @@ MIR borrowck is intended to only reprove things already proven by HIR typeck. Be
 Unfortunately, there are a bunch of subtle ways in which the trait solver relies on regions being identical. These include:
 - [accessing the `opaque_type_storage`](./opaque-types.md), which is a structural lookup in the current implementation
 - [merging multiple applicable where-clause, alias-bound, or builtin candidates](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/mod.rs#L314-L320)
-- potentially [trait solver cycle fixpoint behavior](./canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint)
+- potentially [trait solver cycle fixpoint behavior](canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint)
 
 There are also fast paths for structurally identical types, e.g. [in type relations](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/relate/solver_relating.rs#L148-L150).
 

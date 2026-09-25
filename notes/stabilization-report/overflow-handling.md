@@ -42,7 +42,7 @@ To reduce the impact of tracking the recursion depth correctly, we're also not i
 
 While reaching the recursion limit inside of the trait solver is no longer fatal, there are other places which could overflow and therefore have an arbitrary limit in the type system. These are all a lot less important, but let's quickly go through some relevant ones.
 
-[Rerunning cycle heads inside of the trait solver](./canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint) has an arbitrary limit of 8. In general, we tend to each reach a fixpoint after 1 iteration or fail with overflow. I am not aware of any non-artificial examples which even get close to this limit. Hitting the limit results in a non-fatal trait solver overflow. This arbitrary limit does result in theoretical breakage https://github.com/rust-lang/trait-system-refactor-initiative/issues/118.
+[Rerunning cycle heads inside of the trait solver](canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint) has an arbitrary limit of 8. In general, we tend to each reach a fixpoint after 1 iteration or fail with overflow. I am not aware of any non-artificial examples which even get close to this limit. Hitting the limit results in a non-fatal trait solver overflow. This arbitrary limit does result in theoretical breakage https://github.com/rust-lang/trait-system-refactor-initiative/issues/118.
 
 [Overflow in the `FulfillmentContext`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/fulfill.rs#L203-L215) pretty much only happens due to compiler bugs and remains fatal.
 
