@@ -13,7 +13,7 @@ The main differences between the canonicalization routines is as follows.
 4. As mentioned in the [opaque types](./opaque-types.md) document, `CanonicalInput` contains a list of already defined opaque types.
 5. We erase universe information in query inputs, more on that later.
 
-We still use the old style canonicalization in some places, especially if the code is shared by both trait solvers. We should remove one of them soon after stabilization. There are a few subtle differences between them. We added some hacks to places which rely on old canonicalization to handle opaque types: https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/canonical/query_response.rs#L92-L108.
+We still use the old style canonicalization in some places, especially if the code is shared by both trait solvers. We should remove one of them soon after stabilization. There are a few subtle differences between them. We added some hacks to places which rely on old canonicalization to handle opaque types: [source](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_infer/src/infer/canonical/query_response.rs#L92-L108).
 
 ### Erasing universe information in query inputs
 
@@ -21,15 +21,14 @@ All inputs get put into the root universe. The trait solver does not care about 
 
 Old canonicalization already does this for type and const inference variables for performance reasons: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_infer/src/infer/canonical/canonicalizer.rs#L355-L358).
 
-We don't need to provide universe information to canonical queries as we are able to recover all universe information when instantiating query responses. Input placeholders get mapped back to their input universal variable: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L266-L280). This works fine for region placeholders as relating them to an inference variable which cannot name it emits a region constraint which will later cause an error. This differs from `feature(non_lifetime_binders)`, where relating a placeholder with an inference variable it cannot name currently eagerly errors. Because of this, instantiating a canonical response is currently broken with that feature https://github.com/rust-lang/rust/issues/163438.
+We don't need to provide universe information to canonical queries as we are able to recover all universe information when instantiating query responses. Input placeholders get mapped back to their input universal variable: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L266-L280). This works fine for region placeholders as relating them to an inference variable which cannot name it emits a region constraint which will later cause an error. This differs from `feature(non_lifetime_binders)`, where relating a placeholder with an inference variable it cannot name currently eagerly errors. Because of this, instantiating a canonical response is currently broken with that feature: https://github.com/rust-lang/rust/issues/163438.
 
 We instantiate any new existential variables in the currently highest universe. They then get pulled down into their actual universe when equating them with the original `var_values`: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L501-L504).
 
 
 ### Canonical `param_env` cache
 
-Canonicalization has a cache to very quickly canonicalize the `param_env`
-https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/canonicalizer.rs#L149. This is necessary as it has a huge impact on the compilation time of some crates, see https://github.com/rust-lang/rust/pull/141451#issuecomment-2959946611.
+Canonicalization has a cache to very quickly canonicalize the `param_env`: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/canonicalizer.rs#L149). This is necessary as it has a huge impact on the compilation time of some crates, see https://github.com/rust-lang/rust/pull/141451#issuecomment-2959946611.
 
 ## Cycle handling
 
@@ -41,7 +40,7 @@ If a cycle is coinductive, its initial provisional value is `Certainty::Yes` wit
 
 ### Breaking change
 
-In the old solver non-productive cycles are always ambiguous in `evaluate`. It only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection. https://github.com/rust-lang/trait-system-refactor-initiative/issues/224
+In the old solver non-productive cycles are always ambiguous in `evaluate`. It only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection: https://github.com/rust-lang/trait-system-refactor-initiative/issues/224.
 
 ### Weird jank
 
