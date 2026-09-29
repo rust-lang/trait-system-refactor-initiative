@@ -20,6 +20,8 @@ This also results in subtle new invariants of the type system. Whether we hit th
 
 I think we're currently fine here. It is an annoying invariant to keep in mind however.
 
+TODO: mir borrowck invariant
+
 ### Discarding nested constraints on overflow
 
 To avoid hangs, we drop nested constraints if a goal encountered overflow: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1586-L1606). This is necessary as it's otherwise very easy to get exponentially large types which results in hangs and out of memory errors. Discarding these constraints does result in some minor issues, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/274. 

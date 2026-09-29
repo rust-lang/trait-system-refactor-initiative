@@ -8,13 +8,15 @@ Proof tree visitors are implemented via [an alternative entry-point](https://git
 
 This is an overview of interesting `ProofTreeVisitors` and why they exist.
 
+TODO: why are they jank
+
 ## [`fn obligations_for_self_ty`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L108) and [`fn pending_obligations_potentially_referencing_float_infer`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L190)
 
 There are a bunch of places during HIR typeck which look at the list of currently pending obligations to guide type inference. For compatibility with the old solver we're using a proof tree visitor to also look at nested obligations. We do this in the following locations.
 
 When looking for `FnX` bounds for the `Expectation` in [`fn deduce_closure_signature`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/closure.rs#L290). We do this similarly for [`async`-blocks](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/closure.rs#L921) and [`async`-closures](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/closure.rs#L524).
 
-We also need to look at nested obligations in [`fn type_var_is_sized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/fn_ctxt/_impl.rs#L757). This is used by [`fn coerce_unsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2209) to decide whether to add a coercion from `?inf` to some unsized type.
+We also need to look at nested obligations in [`fn type_var_is_sized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/fn_ctxt/_impl.rs#L757). This is used by [`fn coerce_unsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2209) to decide whether to add a coercion from `?inf` to some unsized.
 
 ## [`CoerceUnsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2169)
 
