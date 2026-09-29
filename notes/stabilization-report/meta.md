@@ -98,7 +98,7 @@ https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/
 
 We removed the split between evaluation and fulfillment. This impacts type inference in two minor ways.
 - selection now runs nested goals until reaching a fixpoint, slightly strengthening inference https://github.com/rust-lang/trait-system-refactor-initiative/issues/102
-- selection currently does not try to prove nested goals if there's only one candidate, which changes the order in which we evaluate goals and is theoretically breaking https://github.com/rust-lang/trait-system-refactor-initiative/issues/97
+- selection currently does not try to prove nested goals if there's only one candidate, which changes the order in which we evaluate goals and is theoretically breaking https://github.com/rust-lang/trait-system-refactor-initiative/issues/97 https://github.com/rust-lang/rust/pull/163476
 
 The removal of this difference also allows us to cleanup some existing hacks, notably in [`fn pred_known_to_hold_modulo_regions`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_trait_selection/src/traits/mod.rs#L230-L251).
 
