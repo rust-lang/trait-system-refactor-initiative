@@ -32,29 +32,13 @@ Canonicalization has a cache to very quickly canonicalize the `param_env`: [sour
 
 ## Cycle handling
 
-The next-generation trait solver handles cycles differently than the old solver. This change is necessary due to https://github.com/rust-lang/trait-system-refactor-initiative/issues/10. The old trait solver did not track cycle participants sufficiently. This change more closely matches my current intuition of what cycles are and how to deal with them. However, we're still far from fully figuring this out and there are some open questions we're going to ignore as part of this stabilization.
+The next-generation trait solver handles cycles the same as the old solver, see https://github.com/rust-lang/rust/pull/163496. A trait solver cycle is coinductive exactly if:
+- there's at least one coinductive - `Sized` or auto-trait - goal in the cycle
+- all goals in the cycle are either coinductive trait goals or `Projection` goals
 
-TODO: https://github.com/rust-lang/rust/pull/163496
-
-TODO: reword
-
-A cycle is now considered coinductive if at least one step is productive. In the old cycles were only coinductive if all goals involved in the cycle were coinductive. Importantly, whether a cycle is coinductive does not depend on the goals in the cycle, but the steps between goals; the reason why were proving nested goals: [source](https://github.com/rust-lang/rust/blob/28b5293debd90e0ad9b8ccb937c03e499cfc2170/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L430-L469). This does not affect too much code. See https://github.com/rust-lang/rust/blob/3670d2532bdf51abbe0b8fea22284d7ca340ffe3/tests/ui/traits/next-solver/cycles/coinduction/only-one-coinductive-step-needed.rs for an example of what's allowed now.
+We need to support cycles involving `Projection` goals due to https://github.com/rust-lang/trait-system-refactor-initiative/issues/10. The old trait solver did not track cycle participants sufficiently.
 
 If a cycle is coinductive, its initial provisional value is `Certainty::Yes` with no constraints, otherwise we return overflow. In the medium term, we'll likely change cycles which are known to be unproductive to `NoSolution` instead, but that's not necessary for stabilization: https://github.com/rust-lang/rust/pull/163159.
-
-### Breaking change
-
-In the old solver non-productive cycles are always ambiguous in `evaluate`. It only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection: https://github.com/rust-lang/trait-system-refactor-initiative/issues/224.
-
-### Weird jank
-
-We still haven't fully figured out the way cycle handling should work.
-
-On a conceptional level, normalizing aliases in a goal should happen *outside* of that goal. This happens accidentally if we eagerly normalize. However, we can't always eagerly normalize higher-ranked aliases, so these may get normalized inside of the goal. This may change the cycle kind and I can't tell whether this can cause any issues. I think that for now things are fine here.
-
-I also haven't really figured out how negative reasoning interacts with our cycle handling, but think this shouldn't block stabilization, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/122.
-
-When proving goals via item bounds, this may hide cycles which we then never detect. This is a major bug, see https://github.com/rust-lang/rust/issues/135246 and https://github.com/rust-lang/rust/issues/150508.
 
 ### Rerunning canonical goals until reaching a fixpoint
 
@@ -76,11 +60,25 @@ Doing it this way instead of only detecting cycles if the goals are exactly equa
 
 #### Avoiding exponential blowup
 
-Rerunning cycle heads can result in exponential blowup for more involved cycles. This was a very large issue [while we tried to do proper `ParamEnv` normalization](./aliases-and-type-relations.md#paramenv-normalization-jank). As this is something we're not doing as part of this stabilization, these performance optimizations are still necessary, but significantly less so. 
+Rerunning cycle heads can result in exponential blowup for more involved cycles. This was a very large issue [while we tried to do proper `ParamEnv` normalization](./aliases-and-type-relations.md#paramenv-normalization-jank). As this is something we're not doing as part of this stabilization, these performance optimizations are still useful, but significantly less so. 
 
 We track [`HeadUsages`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L160-L179) and if a candidates ends up not impacting the result of a goal, we don't care whether this candidate depends on an outdated provisional result. We [drop irrelevant usages](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/trait_goals.rs#L1618-L1643), and [then avoid rerunning because of it](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1377-L1397).
 
 We also never rerun if a goal is ambiguous with no constraints. We just return ambiguity in this case as an ambiguous provisional result really should not change the final result to not be ambiguous in the next iteration: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_type_ir/src/search_graph/mod.rs#L1399-L1415).
+
+### Breaking change
+
+In the old solver non-productive cycles are always ambiguous in `evaluate`. It only uses `evaluate` to select candidates and then processes these candidates in `fulfill`. This means `fulfill` also needs to handle cycles. We currently treating cycles in fulfill as an error, which can impact method selection: https://github.com/rust-lang/trait-system-refactor-initiative/issues/224.
+
+### Weird jank and the long-term plan
+
+We still haven't fully figured out the way cycle handling should work. This behavior is still in flux and for now we match the behavior of the old solver, with all its limitations and issues.
+
+On a conceptional level, normalizing aliases in a goal should happen *outside* of that goal. This happens accidentally if we eagerly normalize. However, we can't always eagerly normalize higher-ranked aliases, so these may get normalized inside of the goal. This may change the cycle kind and I can't tell whether this can cause any issues. I think that for now things are fine here.
+
+I also haven't really figured out how negative reasoning interacts with our cycle handling, but think this shouldn't block stabilization, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/122.
+
+When proving goals via item bounds, this may hide cycles which we then never detect. This is a major bug, see https://github.com/rust-lang/rust/issues/135246 and https://github.com/rust-lang/rust/issues/150508.
 
 ## Caching
 
