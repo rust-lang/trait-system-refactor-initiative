@@ -4,13 +4,31 @@ They exist because `FulfillmentCtxt` no longer contains nested obligations. In t
 
 There are still some parts of the type system which care about the nested obligations for a given root goal. For this we use [`ProofTreeVisitors`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/inspect/analyse.rs#L377).
 
-Proof tree visitors are implemented via [an alternative entry-point](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1918) to the trait solver. This then tracks the information necessary to act as if proving a goal was simply a list of candidates with an individual a set of nested obligations. The current implementation here is not great and I would like to spend some time to clean this up after stabilization. It does work well enough for now and changing it later shouldn't cause issues.
+Proof tree visitors are implemented via [an alternative entry-point](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1918) to the trait solver. This then tracks the information necessary to act as if proving a goal was simply a list of candidates with an individual a set of nested obligations. 
 
-This is an overview of interesting `ProofTreeVisitors` and why they exist.
+## Limitations and issues of the current implementation
 
-TODO: why are they jank
+The current implementation here is not great and I would like to spend some time to clean this up after stabilization.
 
-## [`fn obligations_for_self_ty`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L108) and [`fn pending_obligations_potentially_referencing_float_infer`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L190)
+Proof trees can't really deal with goals during which we make inference progress or issues with incomplete inference guidance. We want a proof tree to be a list of candidates where each candidate contains a list of nested goals.
+
+This means we need to eagerly collect all the nested goals, which means we can't have different inference states for individual nested goals.
+
+Proof trees also have no way of representing (coinductive) trait solver cycles and especially [canonical reruns](./canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint). I am unsure how we'd represent them.
+
+Their interaction with higher-ranked goals is weird and they can easily leak placeholders. This is also an issue of the old solver and the way it simply looks at stalled nested obligations in the `FulfillmentContext`.
+
+The fact that proof trees can't easily represent inference progress also makes [candidates for associated term normalization](./aliases-and-type-relations.md#alias-normalization-implementation) somewhat weird, as we can't easily hide the expected term from the proof tree.
+
+The proof tree visitor also doesn't have a good way of caching nested goals as the behavior when encountering an already visited goal differs between different visitors. This means we need an artificially low recursion limit to avoid hangs: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_trait_selection/src/solve/inspect/analyse.rs#L383).
+
+These limitations are difficult to work around, however, it does work quite well and these issues don't affect their normal use. We can and should improve them going forward.
+
+## Uses of `ProofTreeVisitor`
+
+This is an overview of interesting proof tree visitors and why they exist.
+
+### [`fn obligations_for_self_ty`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L108) and [`fn pending_obligations_potentially_referencing_float_infer`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/fn_ctxt/inspect_obligations.rs#L190)
 
 There are a bunch of places during HIR typeck which look at the list of currently pending obligations to guide type inference. For compatibility with the old solver we're using a proof tree visitor to also look at nested obligations. We do this in the following locations.
 
@@ -18,7 +36,7 @@ When looking for `FnX` bounds for the `Expectation` in [`fn deduce_closure_signa
 
 We also need to look at nested obligations in [`fn type_var_is_sized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/fn_ctxt/_impl.rs#L757). This is used by [`fn coerce_unsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2209) to decide whether to add a coercion from `?inf` to some unsized.
 
-## [`CoerceUnsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2169)
+### [`CoerceUnsized`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L2169)
 
 We're using a `ProofTreeVisitor` instead of [the manual fulfillment loop](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L718-L821) used by old solver.
 
@@ -30,7 +48,7 @@ At it's core, the issue was that MIR typeck would simply prove `T: Unsize<U>` wh
 
 The old solver did not use where-clauses for incomplete inference guidance for coercions while the new solver does. This requires unstable features and I don't care about that inference change in general: https://github.com/rust-lang/trait-system-refactor-initiative/issues/261.
 
-## [`BestObligation`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/fulfill/derive_errors.rs#L411) for trait errors
+### [`BestObligation`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/fulfill/derive_errors.rs#L411) for trait errors
 
 With the old solver, successfully selecting a candidate puts its nested goals into the `FulfillmentCtxt`. If that nested goal then fails, we emit an error for the nested goal instead of the root goal:
 ```rust
@@ -42,11 +60,11 @@ fn foo<T>() {
 ```
 This error emitting behavior is an implementation detail and also has some undesirable edge-cases, where we consider candidates we really shouldn't, e.g. talking about `Interator` instead of `IntoIterator`. This is also why we've added the `#[diagnostic::do_not_recommend]` attribute.
 
-## [`AmbiguityCausesVisitor`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/traits/coherence.rs#L728) for coherence errors
+### [`AmbiguityCausesVisitor`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/traits/coherence.rs#L728) for coherence errors
 
 Used by coherence to improve error messages in case of overlap. Emitting good errors here required changes to the old trait solver: [source](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/traits/select/mod.rs#L368-L398). 
 
-## [`select`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/select.rs#L38)
+### [`select`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/select.rs#L38)
 
 We originally didn't really want to have the concept of selecting an impl to exist in the trait solver as that did not fit well with our more logical perspective on what trait solving means. We've somewhat gone back from that again, see the notes on [candidate preference](./meta.md#candidate-preference-and-winnowing).
 
