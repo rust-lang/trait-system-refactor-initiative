@@ -20,6 +20,14 @@ There are very few places where we use different `ParamEnv`s in the same context
 
 Making this concept explicit is necessary for "on-demand normalization" to avoid performance issues and to support the "`ParamEnv` normalization jank". We'd otherwise try to renormalize rigid aliases whenever we encounter them.
 
+## Alias normalization implementation
+
+The only way we normalize aliases is via `Projection` goals: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/project_goals/mod.rs#L21-L42).
+
+We don't want the expected term to influence candidate selection when normalizing associated terms. Because of this, we use a nested goal to actually normalize the alias where we replace the expected term with an inference variable: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/project_goals/mod.rs#L53-L72).
+
+To avoid weakening type inference, this nested goal has some special behavior. We return the `NormalizationNestedGoals` to the parent `Projection` goal and try to reprove them there in case equating the normalized-to type with the expected term guides inference: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1661-L1681). Because of this we also don't erase constraints from these nested normalization goals if it encountered overflow, unlike for other goals as stated in the [overflow doc](overflow-handling.md#discarding-nested-constraints-on-overflow). This avoids some breaking at least one UI test, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/70.
+
 ## On-demand normalization
 
 We also add support for on-demand normalization of aliases during type relations and in the trait solver itself. When encountering an alias not marked as rigid in type relations, we emit a `Projection` goal to normalize it at this point. This causes type relations to now emit nested `Projection` obligations. When doing a probe, we generally want to eagerly try to prove these and we change some places in the compiler to do so, e.g. [`Coerce::unify_raw`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/coercion.rs#L181-L192) and [`FnCtxt::try_find_coercion_lub`](https://github.com/rust-lang/rust/blob/70222712809cd5cc1718ed8995914a1cbacb6b92/compiler/rustc_hir_typeck/src/coercion.rs#L1355-L1363).
