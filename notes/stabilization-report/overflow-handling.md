@@ -20,8 +20,6 @@ This also results in subtle new invariants of the type system. Whether we hit th
 
 I think we're currently fine here. It is an annoying invariant to keep in mind however.
 
-TODO: mir borrowck invariant
-
 ### Discarding nested constraints on overflow
 
 To avoid hangs, we drop nested constraints if a goal encountered overflow: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/solve/eval_ctxt/mod.rs#L1586-L1606). This is necessary as it's otherwise very easy to get exponentially large types which results in hangs and out of memory errors. Discarding these constraints does result in some minor issues, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/274.
@@ -31,6 +29,12 @@ To avoid hangs, we drop nested constraints if a goal encountered overflow: [sour
 Another source of exponential blowup is overflow where there are multiple candidates or overflowing goals per step. This way it's easy to get an exponential amount of goals. We avoid this by dividing the remaining available depth for nested goals by 4 once at least one nested goal hit the overflow limit: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_type_ir/src/search_graph/mod.rs#L288-L319).
 
 This is necessary for `typenum`, see https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_type_ir/src/search_graph/mod.rs#L288-L319. However, it can unfortunately also result in breakage, even if there's currently no known affected project https://github.com/rust-lang/trait-system-refactor-initiative/issues/276.
+
+### A stronger MIR borrowck invariant
+
+We assume that if a goal succeeds in HIR typeck it'll also succeed in MIR borrowck and ICE if that is not the case. This means differences in the available depth can now result in ICEs due to non-fatal overflow. The old instead just emitted a fatal error in MIR borrowck. This was one of the reasons we changed [`CoerceUnsized`](./proof-tree-visitors.md#coerceunsized) to a `ProofTreeVisitor`.
+
+We could alternatively change overflow in MIR borrowck to abort compilation again. This is safe and does allows the exact same code to compile. Maintaining the invariant that HIR and MIR typeck actually prove the same goals is not too hard, so I don't think we have to do this right now, it is something we can freely change if we get any issue reports.
 
 ## Properly tracking the required `recursion_depth`
 

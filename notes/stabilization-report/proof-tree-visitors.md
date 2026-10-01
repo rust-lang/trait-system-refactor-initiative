@@ -23,7 +23,7 @@ We also need to look at nested obligations in [`fn type_var_is_sized`](https://g
 We're using a `ProofTreeVisitor` instead of [the manual fulfillment loop](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_hir_typeck/src/coercion.rs#L718-L821) used by old solver.
 
 There were two bugs of the old implementation which are fixed by the new approach:
-- https://github.com/rust-lang/trait-system-refactor-initiative/issues/238
+- https://github.com/rust-lang/trait-system-refactor-initiative/issues/238 (see the [overflow doc](./overflow-handling.md#a-stronger-mir-borrowck-invariant))
 - https://github.com/rust-lang/trait-system-refactor-initiative/issues/241
 
 At it's core, the issue was that MIR typeck would simply prove `T: Unsize<U>` while the old solver manually handled these goals, which resulted in minor mismatches between HIR and MIR typeck. Handling these is annoying, whereas the new approach results in the same root obligation in both HIR and MIR typeck.
