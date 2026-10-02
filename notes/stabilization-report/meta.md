@@ -61,7 +61,7 @@ TODO: link to the code which actually requires certainty to be the same. this is
 
 ### Candidate assembly and preference
 
-We now merge where-clauses by checking the constraits in their query response instead of a syntactic check. TODO: does this result in behavior differences. TODO: YES no constraints + MAYBE sus https://rust-lang.zulipchat.com/#narrow/channel/144729-t-types/topic/resolving.20equal.20regions/near/623504310. The candidate preference rules are nearly the same between the two solvers since https://github.com/rust-lang/rust/pull/132325, with some minor differences.
+We now merge where-clauses by checking the constraits in their query response instead of a syntactic check. TODO: does this result in behavior differences. TODO: YES no constraints + MAYBE sus https://rust-lang.zulipchat.com/#narrow/channel/144729-t-types/topic/resolving.20equal.20regions/near/623504310. The candidate preference rules are nearly the same between the two solvers since https://github.com/rust-lang/rust/pull/132325, with some minor differences. This allows some additional code to compile e.g. TODO: https://github.com/rust-lang/rust/blob/main/tests/ui/lifetimes/conflicting-bounds.rs#L6.
 
 The old solver simply chooses the alias-bound and trait object candidate with a lower index: [source](https://github.com/rust-lang/rust/blob/288a941096948e3a6d9e85b7628dcf9b12cab633/compiler/rustc_trait_selection/src/traits/select/mod.rs#L1919-L1936). The new solver instead tries to merge the candidates. This is theoretically breaking until we get full support for OR-constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/27.
 
