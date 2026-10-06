@@ -1,6 +1,6 @@
 # Proof tree visitors
 
-They exist because `FulfillmentCtxt` no longer contains nested obligations. In the old solver we used `evaluate` to `select` a single candidate and then added the nested goals for that candidate to the `FulfillmentCtxt` and proved them later. The new solver does not have a split between proving goals in `fulfill` and `evaluate` so proving a goal in the `FulfillmentCtxt` directly proves all nested goals insteead of returning them.
+They exist because `FulfillmentCtxt` no longer contains nested obligations. In the old solver we used `evaluate` to `select` a single candidate and then added the nested goals for that candidate to the `FulfillmentCtxt` and proved them later. The new solver does not have a split between proving goals in `fulfill` and `evaluate` so proving a goal in the `FulfillmentCtxt` directly proves all nested goals instead of returning them.
 
 There are still some parts of the type system which care about the nested obligations for a given root goal. For this we use [`ProofTreeVisitors`](https://github.com/rust-lang/rust/blob/1a8fa555801329bd0e803d7384b5a21191c61f30/compiler/rustc_trait_selection/src/solve/inspect/analyse.rs#L377).
 

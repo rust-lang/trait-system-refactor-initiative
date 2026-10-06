@@ -107,7 +107,7 @@ fn foo(b: bool) -> impl Iterator<Item = u32> {
 ```
 
 
-See https://github.com/rust-lang/trait-system-refactor-initiative/issues/182. Normally `Trait` and `Projection` goals immediately bail if the self-type is an inference variable. If the self type has been sub-unified with a hidden type of an defined opaque type, we insteead use the item-bounds of the opaque types to guide type inference: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/assembly/mod.rs#L1124).
+See https://github.com/rust-lang/trait-system-refactor-initiative/issues/182. Normally `Trait` and `Projection` goals immediately bail if the self-type is an inference variable. If the self type has been sub-unified with a hidden type of an defined opaque type, we instead use the item-bounds of the opaque types to guide type inference: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/assembly/mod.rs#L1124).
 
 This also has to support blanket impls https://github.com/rust-lang/trait-system-refactor-initiative/issues/196: [source](https://github.com/rust-lang/rust/blob/012c0bd4d516934012c9a1ecb26e9eb283d2ed75/compiler/rustc_next_trait_solver/src/solve/assembly/mod.rs#L1206-L1236). The blanket impl handling here is kinda scuffed, which is tracked in https://github.com/rust-lang/trait-system-refactor-initiative/issues/229.
 
