@@ -86,7 +86,7 @@ One major annoyance are recursive uses of opaque types. With the old solver recu
 
 To avoid breakage we're introducing the concept of an inference variable being *pseudo rigid*. We use this for the hidden-types of opaques and unconstrained associated types of other pseudo rigid inference variables. We rely on sub-unification here as subtyping is just incredibly prevalent. This works fairly well, even if it is a unprincipled hack.
 
-We plan to  also extend this hack to unconstrained associated types of not-yet defined opaque types to fix https://github.com/rust-lang/trait-system-refactor-initiative/issues/248. We're not doing so for this stabilization and I consider this acceptable breakage.
+We plan to also extend this hack to unconstrained associated types of not-yet defined opaque types to fix https://github.com/rust-lang/trait-system-refactor-initiative/issues/248. TODO: breakage this fixes. We're not doing so for this stabilization and I consider this acceptable breakage.
 
 More generally, this is a quite rare local inference edge-case and it does not have to be perfect. I am comfortable with refining this approach going forward, even if it breaks a few crates if we do so.
 
