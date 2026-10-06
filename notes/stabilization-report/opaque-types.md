@@ -69,7 +69,7 @@ It's the responsibility of HIR typeck to figure out the hidden type of all opaqu
 - `opaque<T, ?inf> = Vec<T>` non-defining use
 - `opaque<T, U> = Vec<?inf>` non-defining use because of hidden type
 - `opaque<T> = &'inf u32` defining use as HIR typeck ignores regions
-- `opaque<'?inf, T>` defining use as HIR typeck ignores regions
+- `opaque<'?inf, T> = u32` defining use as HIR typeck ignores regions
 
 If we found at least one defining use, we map the hidden type of that use to the defining scope of the opaque type, and then use that type to check all other uses of this opaque: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L139-L146). Given `opaque<T> = Vec<T>` and `opaque<?a> = ?b`, we'd use the defining use to check the non-defining use, constraining `?b` to `Vec<?a>`.
 
