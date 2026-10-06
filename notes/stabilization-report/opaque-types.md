@@ -50,6 +50,8 @@ The core idea is that instead of proving a goal in the current `TypingMode`, we 
 
 We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though. This is necessary as there are existing projects with recursive calls whose arguments are not generic parameters whose RPIT is treated as fully opaque with the old solver. As we now always normalize opaque types in their defining scopes, we need to support non-defining uses, e.g. in [wax-0.6](https://github.com/olson-sean-k/wax/blob/1afcda8318201afc04ebed06fea907d54fc1bf8c/src/token/mod.rs#L1058). We also frequently encounter recursive uses with local regions as arguments, e.g. in the [`gll`](https://github.com/rust-lang-nursery/gll/blob/3e82b327f5dff5a7ab2c7c20498b597a0d47b581/src/generate/rust.rs#L724-L727) crate. See https://github.com/rust-lang/types-team/issues/129 for more information.
 
+TOOD: more later
+
 ## General implementation details
 
 We store all uses of opaque types in their defining scope in the [`opaque_type_storage`](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_infer/src/infer/mod.rs#L170-L171). The storage is a map from the opaque type `AliasTy` to its hidden type. This means we rely on structural identity of the opaque type arguments for lookup. As the keys can reference inference variables, canonical queries can return duplicate entries. That's kind of ugly and these entries are currently stored in a separate list: [source](https://github.com/rust-lang/rust/blob/a4c14451a9c1e134bcdbc97e2a255739c20df6e8/compiler/rustc_next_trait_solver/src/canonical/mod.rs#L539-L552). 
@@ -63,6 +65,8 @@ With the old solver we sometimes eagerly replaced opaque types with inference va
 ## HIR typeck
 
 It's the responsibility of HIR typeck to figure out the hidden type of all opaque types in the defining scope. HIR typeck is shared by all nested bodies of a typeck root. At the end of HIR typeck, we require that there exists a defining for every opaque type defined by the current body: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L115-L215). Examples
+
+TODO: concrete descrption of what's a defining use
 - `opaque<T, U> = Vec<U>` defining use
 - `opaque<T, T> = Vec<T>` non-defining use
 - `opaque<T, u32> = Vec<T>` non-defining use
