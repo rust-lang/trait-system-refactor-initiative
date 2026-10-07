@@ -11,10 +11,10 @@ There are a lot of technical nuances and implementation choices here. Not all of
     - we support non-defining uses in the defining scope
     - we add the explicit concept of pseudo-rigid opaque types during HIR typeck
     - we split borrowck into two steps to support non-defining uses in nested bodies
-- a solver cycle is now coinductive if at least one step is productive, previously all steps had to be: [doc](canonicalization-cycle-handling-and-caching.md) TODO: no longer true
 - reaching the overflow limit is now non-fatal: [doc](overflow-handling.md)
 - we removed the split between selection (evaluate) and fulfillment, use proof tree visitors to get information about nested goals: [doc](proof-tree-visitors.md)
 - the trait solver canonicalizes at each step: [doc](canonicalization-cycle-handling-and-caching.md#canonicalization)
+- when encountering cycles, we rerun until reaching a fixpoint: [doc](canonicalization-cycle-handling-and-caching.md#rerunning-canonical-goals-until-reaching-a-fixpoint)
 
 ## Performance impact
 
