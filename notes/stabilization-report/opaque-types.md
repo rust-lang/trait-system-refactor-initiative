@@ -50,7 +50,7 @@ The core idea is that instead of proving a goal in the current `TypingMode`, we 
 
 We need to support uses of an opaque type whose arguments are not generic parameters. We still normalize these opaque types to their underlying type though. This is necessary as there are existing projects with recursive calls whose arguments are not generic parameters whose RPIT is treated as fully opaque with the old solver. As we now always normalize opaque types in their defining scopes, we need to support non-defining uses, e.g. in [wax-0.6](https://github.com/olson-sean-k/wax/blob/1afcda8318201afc04ebed06fea907d54fc1bf8c/src/token/mod.rs#L1058). We also frequently encounter recursive uses with local regions as arguments, e.g. in the [`gll`](https://github.com/rust-lang-nursery/gll/blob/3e82b327f5dff5a7ab2c7c20498b597a0d47b581/src/generate/rust.rs#L724-L727) crate. See https://github.com/rust-lang/types-team/issues/129 for more information.
 
-TOOD: more later
+For more details on what exactly counts as a defining vs non-defining use, see the [HIR typeck](#hir-typeck) and [MIR borrowck](#mir-borrowck) sections.
 
 ## General implementation details
 
@@ -64,9 +64,9 @@ With the old solver we sometimes eagerly replaced opaque types with inference va
 
 ## HIR typeck
 
-It's the responsibility of HIR typeck to figure out the hidden type of all opaque types in the defining scope. HIR typeck is shared by all nested bodies of a typeck root. At the end of HIR typeck, we require that there exists a defining for every opaque type defined by the current body: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L115-L215). Examples
+It's the responsibility of HIR typeck to figure out the hidden type of all opaque types in the defining scope. HIR typeck is shared by all nested bodies of a typeck root. At the end of HIR typeck, we require that there exists a defining for every opaque type defined by the current body: [source](https://github.com/rust-lang/rust/blob/e15ceccfc6209c15b6c4bc6352f6ec6bfe579eaa/compiler/rustc_hir_typeck/src/opaque_types.rs#L115-L215).
 
-TODO: concrete descrption of what's a defining use
+In HIR typeck, a use of an opaque type is considered defining if all non-region arguments of the opaque are unique generic parameters, and the hidden type does not reference any non-region inference variables:
 - `opaque<T, U> = Vec<U>` defining use
 - `opaque<T, T> = Vec<T>` non-defining use
 - `opaque<T, u32> = Vec<T>` non-defining use
@@ -86,7 +86,7 @@ One major annoyance are recursive uses of opaque types. With the old solver recu
 
 To avoid breakage we're introducing the concept of an inference variable being *pseudo rigid*. We use this for the hidden-types of opaques and unconstrained associated types of other pseudo rigid inference variables. We rely on sub-unification here as subtyping is just incredibly prevalent. This works fairly well, even if it is a unprincipled hack.
 
-We plan to also extend this hack to unconstrained associated types of not-yet defined opaque types to fix https://github.com/rust-lang/trait-system-refactor-initiative/issues/248. TODO: breakage this fixes. We're not doing so for this stabilization and I consider this acceptable breakage.
+We plan to also extend this hack to unconstrained associated types of not-yet defined opaque types to fix https://github.com/rust-lang/trait-system-refactor-initiative/issues/248. Not doing so causes multiple crates to fail. See the [section on breaking changes](./meta.md#breaking-changes). We're not doing so for this stabilization and I consider this acceptable breakage.
 
 More generally, this is a quite rare local inference edge-case and it does not have to be perfect. I am comfortable with refining this approach going forward, even if it breaks a few crates if we do so.
 
@@ -155,9 +155,7 @@ The general opaque type handling algorithm is as follows and has been implemente
 - with this, we now check whether there's at least one defining use, i.e. whether the hidden type only mentions arguments of the opaque, and use it to compute the definition site hidden type.
 - we use this hidden type to check all uses of the opaque
 
-This is more permissive than stable in two ways:
-- we allow uses of opaque types with non-defining arguments
-- we allow uses of opaque types with defining arguments, but with an unconstrained hidden type. This is necessary for https://github.com/rust-lang/trait-system-refactor-initiative/issues/264
+A use in MIR borrowck is considered defining if all its arguments are unique generic parameters and, after applying member constraints, all member constraints hold, i.e. the hidden type only mentions arguments of the opaque and `'static`. We need to support uses with defining opaque type arguments, but an underconstrained hidden type  https://github.com/rust-lang/trait-system-refactor-initiative/issues/264.
 
 https://github.com/rust-lang/rust/pull/145925 extends this algorithm to add support for nested bodies. See the description of that PR for more detail. This is necessary to support a defining use in the parent body being used for a non-defining use in a nested body.
 
