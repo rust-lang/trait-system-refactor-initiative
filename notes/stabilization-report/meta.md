@@ -1,6 +1,8 @@
 # Stabilize `-Znext-solver=globally`
 
-This is the main stabilization proposal for the next-generation trait solver. Large and impactful changes are handled in separate FCPs.
+This document is the main stabilization proposal for the next-generation trait solver. Large changes live in separate documents. This is the most involved stabilization we've done since version 1.0 and causes a lot of conceptual, behavior, and compile-time performance changes. `-Znext-solver=globally` has already been on nightly since August 22nd. While doing so has surfaced a non-trivial amount of issues, the impact is minor enough and the benefits from stabilization the trait solver large enough for this to still be worth it.
+
+The new trait solver is not finished. There are both conceptual changes we want to do going forward, and there are also a lot of incremental improvements we are continuously working on. We keep fixing edge-cases and performance regressions. I believe we're now at a point where the benefits of having the new solver be stable significantly outweigh the cost of stabilizing it. This stabilization contains a bit of unintended breakage and introduces some compile-time performance regressions which we will fix as we go forward.
 
 ## Important high-level concepts
 
@@ -31,10 +33,10 @@ TODO: in more detail
 ## Future work
 
 The new solver is far from perfect. We're partially just maintaining the status quo, but also some of our changes are not great and should be improved long term.
-- opaque type handling and relying on structural identity, higher-ranked inference variables
-- overflow handling, relying on hitting the recursion limit being non-fatal, `NestedGoals`
-- borrowck being per body instead of per typeck root
-- `ParamEnv` normalization is still shit
+- opaque type handling and relying on structural identity, higher-ranked inference variables: [doc](./opaque-types.md#the-shiny-future)
+- overflow handling, relying on hitting the recursion limit being non-fatal, `NestedGoals`: [doc](./overflow-handling.md#long-term-plan)
+- borrowck being per body instead of per typeck root: [doc](./opaque-types.md#mir-borrowck)
+- `ParamEnv` normalization is still broken: [doc](./aliases-and-type-relations.md#paramenv-normalization-jank)
 
 ## Minor changes and notes
 
