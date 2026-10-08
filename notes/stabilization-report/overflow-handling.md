@@ -38,11 +38,11 @@ We could alternatively change overflow in MIR borrowck to abort compilation agai
 
 ## Properly tracking the required `recursion_depth`
 
-The old solver does not store the required depth for a goal in its cache. There are a bunch of crates which rely on that.
+The old solver does not store the required depth for a goal in its cache. There are a bunch of crates which rely on that. To avoid breakage, we're now rerunning overflowing goals with twice the available depth and emit the `recursion_depth_exceeding_limit` FCW if that succeeds, see https://github.com/rust-lang/rust/issues/159228.
 
-To avoid breakage, we're now rerunning overflowing goals with twice the available depth and emit a FCW if that succeeds, see https://github.com/rust-lang/rust/issues/159228.
+To reduce the impact of tracking the recursion depth correctly, we're also not increasing the required depth when proving auto traits for opaque types and coroutine witnesses https://github.com/rust-lang/rust/pull/162275.
 
-To reduce the impact of tracking the recursion depth correctly, we're also not increasing the required depth when proving auto traits for opaque types and coroutine witnesses https://github.com/rust-lang/rust/issues/159228.
+This change is unfortunately infectious, so if a dependency has a type for which we trigger this lint, all dependencies using this type will now also have to double their recursion limit https://github.com/rust-lang/rust/issues/160036. Even as a FCW, this is one of the most impactful changes of the new solver and quite annoying for users. I don't want to double the available recursion limit without emitting a lint, so I do think we should accept this.
 
 ## Other uses of arbitrary limits in the type system
 
