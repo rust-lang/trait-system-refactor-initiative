@@ -184,6 +184,8 @@ We allow equating two opaques which are both in their defining scope as we just 
 
 The fact that we can always normalize opaque types in their defining scope means that proving auto-trait bounds for opaque types in their defining scope no longer fails with ambiguity https://github.com/rust-lang/trait-system-refactor-initiative/issues/32
 
+Given that opaque types are now always normalized, HIR type lowering can now rely on the current inference state https://github.com/rust-lang/rust/issues/149078.
+
 We previously didn't normalize opaque types when checking region constraints. Doing so allows more code to compile: https://github.com/rust-lang/trait-system-refactor-initiative/issues/112
 
 Opaque types in dead code still getting defined in MIR borrowck, and we tend to constrain these regions to `'static` via member constraints https://github.com/rust-lang/trait-system-refactor-initiative/issues/170
