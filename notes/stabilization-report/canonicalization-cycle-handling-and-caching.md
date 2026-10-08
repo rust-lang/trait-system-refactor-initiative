@@ -30,6 +30,10 @@ We instantiate any new existential variables in the currently highest universe. 
 
 Canonicalization has a cache to very quickly canonicalize the `param_env`: [source](https://github.com/rust-lang/rust/blob/622fd6a3f80ff4398db552ed138243c845347298/compiler/rustc_next_trait_solver/src/canonical/canonicalizer.rs#L149). This is necessary as it has a huge impact on the compilation time of some crates, see https://github.com/rust-lang/rust/pull/141451#issuecomment-2959946611.
 
+### Filtering trivial constraints to avoid hangs
+
+We filter trivial constraints from the query response to avoid hangs due to exponential blowup, see https://github.com/rust-lang/rust/pull/162032.
+
 ## Cycle handling
 
 The next-generation trait solver handles cycles the same as the old solver, see https://github.com/rust-lang/rust/pull/163496. A trait solver cycle is coinductive exactly if:
