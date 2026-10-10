@@ -37,3 +37,7 @@ Intended inference breakage. See [the caching doc](./canonicalization-cycle-hand
 ## Normalize via builtin impl in case of overlap
 
 Intended breakage, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/101. There is one known regression.
+
+## Other known bugs and open issues
+
+See https://hackmd.io/HVoK3ysqSeqW_1s-KIzy7w for a list of all bugs and issues found on GitHub. We will continue fixing these going forward. 
