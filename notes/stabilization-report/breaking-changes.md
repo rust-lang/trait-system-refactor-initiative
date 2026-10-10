@@ -20,7 +20,7 @@ This causes by far the most breakage. It affected `bevy_ecs`, `minijinja`, and m
 
 See [the overflow handling doc](./overflow-handling.md#properly-tracking-the-required-recursion_depth) and https://github.com/rust-lang/rust/issues/159228. We don't know its exact impact, it is the likely the change affecting the most users. This is only a future compat warning.
 
-Looking at the change from https://github.com/rust-lang/rust/pull/133502#issuecomment-3358623722 to https://github.com/rust-lang/rust/pull/133502#issuecomment-3367902058, it likely affected more than 1000 crates, even if https://github.com/rust-lang/rust/pull/162275 has lowered the impact. 
+Looking at the change from https://github.com/rust-lang/rust/pull/133502#issuecomment-3358623722 to https://github.com/rust-lang/rust/pull/133502#issuecomment-3367902058, it likely affected more than 1000 crates, even if https://github.com/rust-lang/rust/pull/162275 has since lowered the impact. 
 
 ## Unconstrained assoc type of not-yet defined opaque type
 
