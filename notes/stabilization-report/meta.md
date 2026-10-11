@@ -22,13 +22,17 @@ There are a lot of technical nuances and implementation choices here. Not all of
 
 ## Performance impact
 
-TODO: up-to-date table by Jana :>
+For the current performance impact, see [this spreadsheet of the top 10k crates](https://docs.google.com/spreadsheets/d/17gTCcR1ECyx5zYB7ukV5Ej4z7FZL0frqJDsVGOlH7-k) by [@jdonzselmann](https://github.com/jdonszelmann). There are a very few crates which are about 2x worse, 27 crates are more than 50% worse, 422 are more than 10% worse, and 96 which are more than 10x better, with 13 which are more than 2x faster.
 
-mostly neutral, sometimes slower, sometimes faster, a lot of space to optimize going forward.
+The largest performance and memory use issue is tracking the `NestedGoals` in the search graph for very deeply nested proofs of auto-traits.  This affects quite a few crates, e.g. `bevy` and `zerocopy`. It is responsible for the [performance issue for bevy](https://github.com/rust-lang/rust/issues/161748) and even causes one crate [to no longer compile due to OOM errors](https://github.com/rust-lang/rust/issues/161660). This will be my main priority after stabilization. However, the impact is minor enough for me to accept this as part of the stabilization.
+
+We are continuing to improve the performance of the new trait solver and there are still quite a few low-hanging fruit, so this will continue to improve significantly as we move further.
 
 ## Breaking changes
 
-We're at less than 500 broken crates due to the new solver. For more information see [this separate doc](./breaking-changes.md).
+The last crater run had a total of 413 failures, of which 114 were non-spurious. For more information see [this separate doc](./breaking-changes.md).
+
+There are also a few minor open GitHub issues. We will continue to improve the new trait solver going forward. I don't think delaying the stabilization significantly more for the sake of minimizing its impact is worth it.
 
 ## Future work
 
