@@ -4,7 +4,7 @@ This is an overview of the currently known issues and breakage with the new solv
 
 This is currently based off [this spreadsheet](https://docs.google.com/spreadsheets/d/1Sq0kEbp31NiOzJ4iFlVGEtVAZH2B7Ya-uez_U1ffZ3g/edit?gid=1419391881#gid=1419391881), which is based off our most recent crater run. We will continue to look into the remaining failures and might fix some of them going forward, however, I think the breakage is minor enough that regardless of the remaining issues, we should go ahead with the staiblization.
 
-The crater run had  have less than 413 true failures. In this crater run there are currently less than 200 regressions for which we have not figured out the root cause yet. Most of these are spurious regressions we couldn't easily build locally.
+The crater run had  have less than 114 failures and 310 spurious results. We're still looking into some of the results and are also looking into all the spurious failures.
 
 ## Incompletely relating higher-ranked aliases
 
@@ -29,6 +29,10 @@ See [the cycle handling doc](./canonicalization-cycle-handling-and-caching.md#br
 ## Local projection cache strenghtening inference
 
 Intended inference breakage. See [the caching doc](./canonicalization-cycle-handling-and-caching.md#inferctxt-local-caches-strengthen-inference) and https://github.com/rust-lang/trait-system-refactor-initiative/issues/215 for more info. This is known to break at least 2 different crates.
+
+## Higher-ranked `TypeOutlives` bounds OOM
+
+See There's also another memory use blowup affecting one crate on crater, see https://github.com/rust-lang/trait-system-refactor-initiative/issues/308. Affects one crate. Will be fixed by the region constraints rework long-term, we may do something before then.
 
 ## Normalize via builtin impl in case of overlap
 
