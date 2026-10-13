@@ -4,7 +4,7 @@ This is an overview of the currently known issues and breakage with the new solv
 
 This is currently based off [this spreadsheet](https://docs.google.com/spreadsheets/d/1Sq0kEbp31NiOzJ4iFlVGEtVAZH2B7Ya-uez_U1ffZ3g/edit?gid=1419391881#gid=1419391881), which is based off our most recent crater run. We will continue to look into the remaining failures and might fix some of them going forward, however, I think the breakage is minor enough that regardless of the remaining issues, we should go ahead with the staiblization.
 
-The crater run had  have less than 114 failures and 310 spurious results. We're still looking into some of the results and are also looking into all the spurious failures.
+The crater run had 114 failures and 310 spurious results. Of these 301 pass when testing locally and most are caused by a few root regressions. There are less than 150 affected crates found via crater. This is partially as a lot of the breakage has already been fixed. We're still looking into some of the results.
 
 ## Incompletely relating higher-ranked aliases
 
