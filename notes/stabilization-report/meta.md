@@ -112,7 +112,7 @@ The removal of this difference also allows us to cleanup some existing hacks, no
 
 These are not changes from the old solver, but instead interesting observations made while working on the new solver.
 
-Minor changes to incompleteness or type inference in general can result in *runtime behavior changes*, most notably by incompletely rejecting some candidates during method selection, e.g. hgttps://github.com/rust-lang/trait-system-refactor-initiative/issues/298.
+Minor changes to incompleteness or type inference in general can result in *runtime behavior changes*, most notably by incompletely rejecting some candidates during method selection, e.g. https://github.com/rust-lang/trait-system-refactor-initiative/issues/298.
 
 We can't actually require `T: Trait` to hold for a rigid `<T as Trait>::Assoc` due to missing implied bounds https://github.com/rust-lang/trait-system-refactor-initiative/issues/177. Proving `T: Trait` has stronger requirements than normalizing associated types.
 
